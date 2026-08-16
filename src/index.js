@@ -70,15 +70,13 @@ window.__ModuleLoader__.load({
         try { unsubscribe = ctx.sessions.list.subscribe(scheduleRefresh); } catch (e) {}
       }
 
-      // 低频兜底：只在"存在会话行但还没装饰全"时才刷新。
+      // 低频兜底：周期性刷新，让"最近回复预览 + 未读红点"跟随新消息更新。
+      // refresh 内部幂等(已有头像跳过、已有 preview 只更新文本)，且 RPC 有 host 缓存，
+      // 所以 1.5s 一次的 setInterval 很便宜，不会反复读盘。
       var fallback = setInterval(function () {
         var rows = document.querySelectorAll('[class*="sessionRow"]');
         if (rows.length === 0) return;
-        var decorated = 0;
-        for (var i = 0; i < rows.length; i++) {
-          if (rows[i].querySelector(".cl-avatar")) decorated++;
-        }
-        if (decorated !== rows.length) refresh(ctx);
+        refresh(ctx);
       }, 1500);
 
       ctx.effect(function () {

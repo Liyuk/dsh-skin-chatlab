@@ -14,7 +14,13 @@ export function rowId(row, idByTitle) {
 }
 
 export function addPreview(row, text) {
-  if (!text || row.querySelector(".cl-preview")) return;
+  if (!text) return;
+  var existing = row.querySelector(".cl-preview");
+  if (existing) {
+    // 已有 preview 就更新文本(新回复来了内容会变)，不重复建节点。
+    if (existing.textContent !== text) existing.textContent = text;
+    return;
+  }
   var preview = document.createElement("div");
   preview.className = "cl-preview";
   preview.textContent = text;

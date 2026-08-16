@@ -36,7 +36,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "esbuild src/index.js --bundle --format=iife --platform=browser --external:react --outfile=lib/client.js"
+    "build": "esbuild src/index.js --bundle --format=iife --platform=browser --external:react --outfile=lib/client.js",
+    "test": "vitest run"
   },
   "type": "module",
   "main": "lib/index.js",
@@ -75,6 +76,7 @@
     }
   },
   "devDependencies": {
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "vitest": "^4.1.10"
   }
 }
