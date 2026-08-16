@@ -4,20 +4,29 @@ import { norm, hashHue } from "./utils.js";
 import { makeAvatar } from "./avatar.js";
 import { listSnapshot } from "./session.js";
 import { titleOf, rowId, addPreview, applyUnread } from "./dom.js";
-import { BRAND_LOGO_SVG } from "../skins/feishu.js";
+import { SKIN_BY_ID } from "../skins/registry.js";
+import { readSkin } from "./prefs.js";
 
-// 品牌 logo：用飞书双鸟替换 DeepSeek 鲸鱼 wordmark。
+// 品牌：保留原 DeepSeek 鲸鱼 icon，只在旁边追加当前皮肤名徽章(跟随皮肤走)。
 export function decorateBrand() {
   var brand = document.querySelector('[class*="brand"]');
   if (!brand) return;
-  if (brand.querySelector(".cl-brand")) return;
-  var wrap = document.createElement("span");
-  wrap.className = "cl-brand";
-  wrap.innerHTML =
-    BRAND_LOGO_SVG +
-    '<span class="cl-brand-name">DeepSeek HARNESS</span>' +
-    '<span class="cl-brand-skin">飞书皮肤</span>';
-  brand.appendChild(wrap);
+  var existing = brand.querySelector(".cl-brand-skin");
+  var skin = readSkin();
+  var label = skin === "none" ? "" : (SKIN_BY_ID[skin] ? SKIN_BY_ID[skin].name : "");
+  if (!label) {
+    // 无皮肤/未知：移除徽章
+    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+    return;
+  }
+  if (existing) {
+    if (existing.textContent !== label) existing.textContent = label;
+    return;
+  }
+  var badge = document.createElement("span");
+  badge.className = "cl-brand-skin";
+  badge.textContent = label;
+  brand.appendChild(badge);
 }
 
 export function decorateSidebar(idByTitle) {
@@ -94,6 +103,32 @@ export function applyPreviews(ctx, snap, idByTitle) {
   }).catch(function () {});
 }
 
+export function decorateTyping(ctx, snap) {
+  // 找输入框上方的 dock 区域(conversation.input.dock slot 的挂载点)。
+  var dock = document.querySelector('[data-slot="conversation.input.dock"]');
+  // 判断当前会话是否 running。
+  var current = snap && snap.current;
+  var summary = current ? (snap.byId && snap.byId[current]) : null;
+  var running = !!(summary && summary.running);
+
+  var existing = document.querySelector(".cl-typing");
+  if (!running) {
+    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+    return;
+  }
+  if (existing) return; // 已在显示
+  // 注入"正在输入…"+三点跳动。挂到 dock 里(没有 dock 则退回 body 顶部不动)。
+  var el = document.createElement("span");
+  el.className = "cl-typing";
+  el.innerHTML =
+    '<span>正在输入</span>' +
+    '<span class="cl-typing-dot"></span>' +
+    '<span class="cl-typing-dot"></span>' +
+    '<span class="cl-typing-dot"></span>';
+  if (dock) dock.appendChild(el);
+  else document.body.appendChild(el);
+}
+
 export function refresh(ctx) {
   var snap = listSnapshot(ctx);
   var idByTitle = {};
@@ -107,5 +142,6 @@ export function refresh(ctx) {
   decorateSidebar(idByTitle);
   decorateProjects();
   decorateHeader(ctx, snap);
+  decorateTyping(ctx, snap);
   applyPreviews(ctx, snap, idByTitle);
 }

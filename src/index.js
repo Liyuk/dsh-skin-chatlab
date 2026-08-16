@@ -31,7 +31,7 @@ window.__ModuleLoader__.load({
         return function () {
           var s = document.getElementById(STYLE_ID);
           if (s && s.parentNode) s.parentNode.removeChild(s);
-          var nodes = document.querySelectorAll(".cl-avatar, .cl-preview, .cl-unread-dot, .cl-project-icon, .cl-brand");
+          var nodes = document.querySelectorAll(".cl-avatar, .cl-preview, .cl-unread-dot, .cl-project-icon, .cl-brand-skin, .cl-typing");
           for (var i = 0; i < nodes.length; i++) {
             var n = nodes[i];
             if (n.parentNode) n.parentNode.removeChild(n);
