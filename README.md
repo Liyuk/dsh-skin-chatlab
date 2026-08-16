@@ -23,7 +23,7 @@
 ## 安装
 
 ```sh
-dsh plugin --profile web add dsh-skin-chatlab
+dsh plugin --profile web add @liyuk/dsh-skin-chatlab
 ```
 
 或在 profile 的 `package.json` 中手动挂载：
@@ -31,7 +31,7 @@ dsh plugin --profile web add dsh-skin-chatlab
 ```jsonc
 {
   "dependencies": {
-    "dsh-skin-chatlab": "^1.0.0"
+    "@liyuk/dsh-skin-chatlab": "^1.0.0"
   },
   "dsh": {
     "profile": {
@@ -103,16 +103,6 @@ host half          注册 /dsh-skin-chatlab loopback RPC，读会话日志供预
 - **绝不用 `innerHTML=""` 删 React 节点、绝不 insertBefore 到 React 节点前**（会触发 `removeChild` 崩溃）
 - 装饰只 `appendChild` 自己的节点，用 CSS Grid/flex 排位，不移动 React 的节点
 - 深色模式交给 DSH 的 `ctx.theme.setTheme()`，不自己维护 theme
-
----
-
-## 与 dsh-chatlab-rail 的分工
-
-| | dsh-skin-chatlab | dsh-chatlab-rail |
-|---|---|---|
-| 定位 | 皮肤(外观) | 导航结构(能力) |
-| 侵入 | 纯 CSS + DOM 装饰 | 覆盖 sidebar slot |
-| 数据 | 只读(预览/未读) | 消费 sessions/workspaces |
 
 ---
 

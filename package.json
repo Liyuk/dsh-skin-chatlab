@@ -1,5 +1,5 @@
 {
-  "name": "dsh-skin-chatlab",
+  "name": "@liyuk/dsh-skin-chatlab",
   "version": "1.0.0",
   "description": "Extensible chat-skin plugin for DeepSeek Harness (DSH) Web GUI: a skin registry + switcher that restyles the chat UI into Feishu/Slack/WeChat/iMessage/WhatsApp. Feishu ships first; each skin only owns appearance (layout/palette/bubbles) and never touches DSH chat logic.",
   "keywords": [
