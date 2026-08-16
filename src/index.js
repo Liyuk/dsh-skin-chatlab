@@ -26,9 +26,28 @@ window.__ModuleLoader__.load({
           SettingsPanel);
       });
 
-      // "无皮肤"：不注入样式、不注入 DOM、不打标记，但保留设置面板。
+      // 统一清理：无论有无皮肤，插件卸载时都移除注入的 style 与 DOM 节点。
+      ctx.effect(function () {
+        return function () {
+          var s = document.getElementById(STYLE_ID);
+          if (s && s.parentNode) s.parentNode.removeChild(s);
+          var nodes = document.querySelectorAll(".cl-avatar, .cl-preview, .cl-unread-dot, .cl-project-icon, .cl-brand");
+          for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            if (n.parentNode) n.parentNode.removeChild(n);
+          }
+          var unread = document.querySelectorAll(".cl-unread");
+          for (var j = 0; j < unread.length; j++) unread[j].classList.remove("cl-unread");
+          document.documentElement.removeAttribute("data-chatlab-skin");
+          document.documentElement.removeAttribute("data-chatlab-theme");
+        };
+      });
+
+      // "无皮肤"：注入设置面板 UI 样式，但不打 data-chatlab-skin 标记、
+      // 不做任何 DOM 装饰，保留设置面板(否则用户切到无皮肤就回不来了)。
       if (skin === "none") {
         applyHtml("none", "light");
+        rebuildCss("none", "light");
         return;
       }
 
@@ -67,17 +86,6 @@ window.__ModuleLoader__.load({
           if (unsubscribe) unsubscribe();
           clearInterval(fallback);
           if (refreshTimer) clearTimeout(refreshTimer);
-          var nodes = document.querySelectorAll(".cl-avatar, .cl-preview, .cl-unread-dot, .cl-project-icon, .cl-brand");
-          for (var i = 0; i < nodes.length; i++) {
-            var n = nodes[i];
-            if (n.parentNode) n.parentNode.removeChild(n);
-          }
-          var unread = document.querySelectorAll(".cl-unread");
-          for (var j = 0; j < unread.length; j++) unread[j].classList.remove("cl-unread");
-          var s = document.getElementById(STYLE_ID);
-          if (s && s.parentNode) s.parentNode.removeChild(s);
-          document.documentElement.removeAttribute("data-chatlab-skin");
-          document.documentElement.removeAttribute("data-chatlab-theme");
         };
       });
     }

@@ -1,5 +1,7 @@
 # dsh-skin-chatlab
 
+[English](./README.en.md) · 简体中文
+
 一个为 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 打造的可扩展聊天皮肤插件。核心是一套**皮肤注册机制 + 切换器**，把聊天界面一键换成飞书 / Slack / 微信 / iMessage / WhatsApp 等任意聊天软件的样式。
 
 飞书皮肤是首发皮肤；其余为占位口子。每套皮肤只负责**外观**（布局 / 配色 / 气泡样式），**绝不侵入 DSH 的聊天逻辑**，也不改动任何现有插件。
@@ -91,7 +93,7 @@ dsh --profile web
 
 ## 皮肤开发：加一套新皮肤
 
-在 `lib/client.js` 的 `SKINS` 数组里加一项即可，无需改动通用逻辑：
+在 `src/skins/registry.js` 的 `SKINS` 数组里加一项即可，无需改动通用逻辑：
 
 ```js
 {
@@ -138,6 +140,18 @@ host half          注册 /dsh-skin-chatlab loopback RPC，读会话日志供预
 - **绝不用 `innerHTML=""` 删 React 节点、绝不 insertBefore 到 React 节点前**（会触发 `removeChild` 崩溃）
 - 装饰只 `appendChild` 自己的节点，用 CSS Grid/flex 排位，不移动 React 的节点
 - 深色模式交给 DSH 的 `ctx.theme.setTheme()`，不自己维护 theme
+
+---
+
+## 贡献 / 一起共建
+
+欢迎一起把更多聊天软件做成皮肤！
+
+- **开发入门**：分支分工、代码结构、加皮肤流程见 [CONTRIBUTING.md](./CONTRIBUTING.md)
+- **发布流程**：dev/main 分支 + tag 触发见 [RELEASING.md](./RELEASING.md)
+- **加一套皮肤**：在 `src/skins/registry.js` 加一项即可，不改 core 逻辑
+
+有任何想法或皮肤创意，欢迎提 Issue / PR。
 
 ---
 
