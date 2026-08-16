@@ -561,6 +561,8 @@
           if (refreshTimer) return;
           refreshTimer = setTimeout(function() {
             refreshTimer = null;
+            var cur = readSkin();
+            rebuildCss(cur, "light");
             refresh(ctx);
           }, 300);
         }

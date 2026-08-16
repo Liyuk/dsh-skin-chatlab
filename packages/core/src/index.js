@@ -61,10 +61,17 @@ window.__ModuleLoader__.load({
       var refreshTimer = null;
       function scheduleRefresh() {
         if (refreshTimer) return;
-        refreshTimer = setTimeout(function () { refreshTimer = null; refresh(ctx); }, 300);
+        refreshTimer = setTimeout(function () {
+          refreshTimer = null;
+          // 皮肤包可能在 core 之后注册 → 皮肤 css 此时才可拿到，需要重建。
+          // 重新读 skin(皮肤注册可能改变当前皮肤的可解析性)，再重建 CSS + 装饰。
+          var cur = readSkin();
+          rebuildCss(cur, "light");
+          refresh(ctx);
+        }, 300);
       }
 
-      // 皮肤包可能在 core 之后注册 → 订阅 registry，有新皮肤时重渲染。
+      // 皮肤包可能在 core 之后注册 → 订阅 registry，有新皮肤时重建 CSS + 重渲染。
       var unsubscribeRegistry = skinRegistry.subscribe(function () { scheduleRefresh(); });
 
       refresh(ctx);
