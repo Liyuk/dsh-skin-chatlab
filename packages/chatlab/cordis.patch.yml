@@ -1,7 +1,0 @@
-# @liyuk/dsh-skin-chatlab 聚合包：一键 mount 基座 + 飞书皮肤。
-# 依赖声明见 package.json 的 dependencies；这里把两个子包都 mount 进 profile。
-- insert:
-    - id: chatlab-core
-      name: '@liyuk/dsh-skin-chatlab-core'
-    - id: chatlab-skin-feishu
-      name: '@liyuk/dsh-skin-feishu'
