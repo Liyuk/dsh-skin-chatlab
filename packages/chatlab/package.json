@@ -1,0 +1,23 @@
+{
+  "name": "@liyuk/dsh-skin-chatlab",
+  "version": "2.0.0",
+  "description": "ChatLab 聚合包：一键安装基座 + 飞书皮肤。如需更多皮肤，单独安装 @liyuk/dsh-skin-<name> 即可。",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@liyuk/dsh-skin-chatlab-core": "^1.0.0",
+    "@liyuk/dsh-skin-feishu": "^1.0.0"
+  }
+}

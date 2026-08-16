@@ -4,7 +4,7 @@ import { norm, hashHue } from "./utils.js";
 import { makeAvatar } from "./avatar.js";
 import { listSnapshot } from "./session.js";
 import { titleOf, rowId, addPreview, applyUnread } from "./dom.js";
-import { SKIN_BY_ID } from "../skins/registry.js";
+import { skinRegistry } from "./registry.js";
 import { readSkin } from "./prefs.js";
 
 // 品牌：保留原 DeepSeek 鲸鱼 icon，只在旁边追加当前皮肤名徽章(跟随皮肤走)。
@@ -13,7 +13,8 @@ export function decorateBrand() {
   if (!brand) return;
   var existing = brand.querySelector(".cl-brand-skin");
   var skin = readSkin();
-  var label = skin === "none" ? "" : (SKIN_BY_ID[skin] ? SKIN_BY_ID[skin].name : "");
+  var def = skin === "none" ? null : skinRegistry.get(skin);
+  var label = def ? def.name : "";
   if (!label) {
     // 无皮肤/未知：移除徽章
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);

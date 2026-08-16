@@ -1,5 +1,5 @@
 // 样式表构建：通用骨架 CSS + 当前皮肤 css + 注入/重建 <style>。
-import { SKIN_BY_ID } from "../skins/registry.js";
+import { skinRegistry } from "./registry.js";
 
 export const STYLE_ID = "dsh-skin-chatlab-css";
 
@@ -42,7 +42,7 @@ export function buildCss(skin, theme) {
   var blocks = [UI_CSS];
   // 无皮肤：只保留设置面板 UI 样式，不注入任何皮肤/装饰相关样式，真正回到默认外观。
   if (skin === "none") return blocks.join("\n");
-  var def = SKIN_BY_ID[skin];
+  var def = skinRegistry.get(skin);
   if (!def) return blocks.join("\n");
   blocks.push(COMMON_CSS);
   // 深色由 DSH 的 ctx.theme 服务管理 token，皮肤不再按 theme 覆盖 token。

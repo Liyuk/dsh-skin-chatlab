@@ -2,7 +2,7 @@
 // react 作为参数传入(不 import)，因为 DSH 的 react 只能通过 factory 的 require 拿到。
 import { readSkin } from "./prefs.js";
 import { KEY_SKIN, KEY_THEME } from "./prefs.js";
-import { SKINS, SKIN_BY_ID } from "../skins/registry.js";
+import { skinRegistry } from "./registry.js";
 
 export function makeSettingsPanel(react) {
   function SwitchRow(props) {
@@ -62,7 +62,8 @@ export function makeSettingsPanel(react) {
       // 切皮肤动布局：写偏好 → 弹提示 → 自动刷新。
       setSkin(v);
       try { localStorage.setItem(KEY_SKIN, v); } catch (e) {}
-      setNotice("已切换到「" + (v === "none" ? "无皮肤" : SKIN_BY_ID[v].name) + "」，正在刷新…");
+      var def = v === "none" ? null : skinRegistry.get(v);
+      setNotice("已切换到「" + (def ? def.name : "无皮肤") + "」，正在刷新…");
       setTimeout(function () { window.location.reload(); }, 600);
     };
     var commitTheme = function (v) {
@@ -84,7 +85,7 @@ export function makeSettingsPanel(react) {
       notice ? react.createElement("div", { className: "cl-notice" }, notice) : null,
       react.createElement("div", { className: "cl-chips" },
         react.createElement(SkinChip, { id: "none", name: "无皮肤", active: skin === "none", onPick: commitSkin }),
-        SKINS.map(function (s) {
+        skinRegistry.list().map(function (s) {
           return react.createElement(SkinChip, {
             key: s.id, id: s.id, name: s.name, desc: s.desc,
             active: skin === s.id, disabled: !s.ready, onPick: commitSkin

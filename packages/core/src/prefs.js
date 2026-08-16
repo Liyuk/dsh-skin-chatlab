@@ -1,5 +1,5 @@
 // 偏好读写 + 皮肤/主题反射到 <html>。
-import { SKIN_BY_ID } from "../skins/registry.js";
+import { skinRegistry } from "./registry.js";
 
 export const KEY_SKIN = "dsh-skin-chatlab.skin";   // 当前皮肤 id（"none" = 关闭）
 export const KEY_THEME = "dsh-skin-chatlab.theme"; // "light" | "dark"
@@ -10,7 +10,7 @@ export function readSkin() {
     var v = localStorage.getItem(KEY_SKIN);
     // "none" 是合法的"关闭皮肤"偏好，不是皮肤 id，必须放行；其余未知值回落 feishu。
     if (v === "none") return "none";
-    return SKIN_BY_ID[v] ? v : "feishu";
+    return skinRegistry.has(v) ? v : "feishu";
   }
   catch (e) { return "feishu"; }
 }

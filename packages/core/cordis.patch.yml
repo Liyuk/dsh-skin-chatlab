@@ -1,0 +1,6 @@
+# @liyuk/dsh-skin-chatlab-core bundle patch: mount the core plugin.
+# `dsh plugin --profile web add @liyuk/dsh-skin-chatlab-core` reconciles
+# dsh.profile.bundles and applies this insert row at boot.
+- insert:
+    - id: chatlab-core
+      name: '@liyuk/dsh-skin-chatlab-core'

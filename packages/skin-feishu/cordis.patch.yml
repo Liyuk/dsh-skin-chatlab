@@ -1,0 +1,5 @@
+# @liyuk/dsh-skin-feishu bundle patch: mount the Feishu skin plugin.
+# Depends on @liyuk/dsh-skin-chatlab-core (its chatlab service).
+- insert:
+    - id: chatlab-skin-feishu
+      name: '@liyuk/dsh-skin-feishu'

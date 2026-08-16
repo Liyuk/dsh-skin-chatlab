@@ -1,6 +1,6 @@
 import { textOf, lastActivity } from "./projection.js";
 
-// dsh-skin-chatlab — host half.
+// @liyuk/dsh-skin-chatlab-core — host half.
 //
 // The skins themselves are client-only (CSS + DOM decoration, see lib/client.js), but the
 // "最近回复预览 + 未读" features need data the browser can't read directly: the last
@@ -17,7 +17,7 @@ import { textOf, lastActivity } from "./projection.js";
 //   - no existing plugin is patched;
 //   - the channel only serves read-only projections, so it can't mutate state;
 //   - `authority: "loopback"` keeps it reachable only from the local web GUI.
-const name = "dsh-skin-chatlab";
+const name = "@liyuk/dsh-skin-chatlab-core";
 
 // Host services this plugin reads. `connection` is injected lazily (inside apply) so a
 // non-web deployment that never composes a connection still boots cleanly. `sessionQuery`

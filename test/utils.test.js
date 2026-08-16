@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { norm, hashHue } from "../src/core/utils.js";
+import { norm, hashHue } from "../packages/core/src/utils.js";
 
 describe("norm", () => {
   it("去除首尾空白并把连续空白折叠为单个空格", () => {

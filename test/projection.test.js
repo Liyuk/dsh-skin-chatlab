@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { textOf, lastActivity } from "../lib/projection.js";
+import { textOf, lastActivity } from "../packages/core/lib/projection.js";
 
 describe("textOf", () => {
   it("提取多个 text 块并用空格连接", () => {
