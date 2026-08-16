@@ -105,7 +105,9 @@ export const FEISHU_CSS = [
   'html[data-chatlab-skin="feishu"] [class*="projectRow"] [class*="folder"] > svg { display: none; }',
   'html[data-chatlab-skin="feishu"] .cl-project-icon { width: 16px; height: 16px; border-radius: 4px; flex: none; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #FFFFFF; line-height: 1; }',
   // ===================== 正在输入(飞书/微信式：输入框上方小字 + 三点跳动) =====================
-  'html[data-chatlab-skin="feishu"] .cl-typing { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 6px 12px; font-size: 12px; color: var(--dsw-alias-label-tertiary); }',
+  // 注意：dock 是 display:contents，typing 会被摊开成块级，必须 width:fit-content 收缩到内容宽，
+  // 否则会横跨整个输入区显得很怪。
+  'html[data-chatlab-skin="feishu"] .cl-typing { display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin: 0 0 4px 4px; padding: 2px 8px; border-radius: 6px; background: var(--dsw-alias-bg-layer-2); font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-secondary); }',
   'html[data-chatlab-skin="feishu"] .cl-typing-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--dsw-alias-label-tertiary); animation: cl-typing-bounce 1.2s infinite; }',
   'html[data-chatlab-skin="feishu"] .cl-typing-dot:nth-child(2) { animation-delay: .2s; }',
   'html[data-chatlab-skin="feishu"] .cl-typing-dot:nth-child(3) { animation-delay: .4s; }',
