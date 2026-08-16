@@ -1,0 +1,7 @@
+# dsh-skin-chatlab bundle patch: mount this plugin into the profile composition.
+# `dsh plugin --profile web add <path|npm|github>` reconciles dsh.profile.bundles
+# against installed packages and, seeing dsh.bundle.patch declared, appends this
+# insert row. Boot then applies it like a manual cordis.patch.yml mount line.
+- insert:
+    - id: chatlab
+      name: 'dsh-skin-chatlab'

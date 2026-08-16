@@ -1,0 +1,74 @@
+{
+  "name": "dsh-skin-chatlab",
+  "version": "1.0.0",
+  "description": "Extensible chat-skin plugin for DeepSeek Harness (DSH) Web GUI: a skin registry + switcher that restyles the chat UI into Feishu/Slack/WeChat/iMessage/WhatsApp. Feishu ships first; each skin only owns appearance (layout/palette/bubbles) and never touches DSH chat logic.",
+  "keywords": [
+    "deepseek-harness",
+    "deepseek-harness-plugin",
+    "dsh",
+    "dsh-plugin",
+    "skin",
+    "theme",
+    "feishu",
+    "lark",
+    "slack",
+    "wechat",
+    "imessage",
+    "whatsapp",
+    "chat-skin",
+    "ui-skin",
+    "cordis",
+    "web-ui"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Liyuk/dsh-skin-chatlab.git"
+  },
+  "homepage": "https://github.com/Liyuk/dsh-skin-chatlab#readme",
+  "bugs": {
+    "url": "https://github.com/Liyuk/dsh-skin-chatlab/issues"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "react": "^18.2.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}
