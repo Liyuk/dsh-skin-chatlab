@@ -35,6 +35,9 @@
   "engines": {
     "node": ">=20"
   },
+  "scripts": {
+    "build": "esbuild src/index.js --bundle --format=iife --platform=browser --external:react --outfile=lib/client.js"
+  },
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -70,5 +73,8 @@
     "react": {
       "optional": true
     }
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }
