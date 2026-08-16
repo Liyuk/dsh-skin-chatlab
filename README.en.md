@@ -4,112 +4,102 @@
 
 > **Note**: This project's primary documentation is the [Chinese README](./README.md). This English copy mirrors it — when editing, keep both in sync.
 
-An extensible chat-skin plugin for the [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI. At its core is a **skin registry + switcher** that restyles the chat UI into Feishu / Slack / WeChat / iMessage / WhatsApp and more.
+An extensible chat-skin **monorepo** for the [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI. A **core base + skin packages** architecture: the base provides the registry and switcher, each skin is an independent npm package that plugs in without touching anything else.
 
-Feishu ships first; the rest are placeholders. Each skin owns only **appearance** (layout / palette / bubbles) and **never touches DSH chat logic** or any existing plugin.
+## Packages
 
----
+| Package | Version | Role |
+|---|---|---|
+| [`@liyuk/dsh-skin-chatlab-core`](./packages/core/README.md) | 1.0.0 | **Base**: skin registry service, switcher, decoration logic, preview/unread RPC |
+| [`@liyuk/dsh-skin-feishu`](./packages/skin-feishu/README.md) | 1.0.0 | **Feishu skin**: workspaces→project groups, sessions→contacts, bubbled chat |
+| [`@liyuk/dsh-skin-chatlab`](./packages/chatlab/README.md) | 2.0.0 | **Aggregate**: depends on core + feishu |
 
-## Features
-
-- **Skin registry**: a `SKINS[]` array where each skin declares only `{ id, name, desc, tokens, css }` — adding a skin changes no shared logic
-- **Settings switcher**: a "ChatLab 皮肤" section with pill buttons; switching a skin auto-refreshes, dark mode hot-switches
-- **Feishu skin** (first, fully implemented):
-  - Workspaces become "项目组" (project groups with colored rounded-square initials)
-  - Sessions become "联系人" (contacts: deterministic avatar + last-message preview + unread dot, auto-clears on open)
-  - Bubbled chat: blue bubbles with a read check for you, gray for the assistant
-  - Brand logo: Feishu birds + "DeepSeek HARNESS" + a "飞书皮肤" badge
-- **Last-message preview + unread**: reads session logs via a loopback RPC (live + cold sessions), data layer decoupled from skins
-- **Purely additive**: switching to "无皮肤" fully unloads and restores DSH defaults
-
----
+Each skin owns only **appearance** (layout / palette / bubbles) and **never touches DSH chat logic** or any existing plugin.
 
 ## Install
+
+### Option 1: Aggregate package (base + Feishu in one)
 
 ```sh
 dsh plugin --profile web add @liyuk/dsh-skin-chatlab
 ```
 
-Or mount manually in your profile's `package.json`:
+Then add to `dsh.profile.bundles` in your profile `package.json`:
 
 ```jsonc
-{
-  "dependencies": {
-    "@liyuk/dsh-skin-chatlab": "^1.0.0"
-  },
-  "dsh": {
-    "profile": {
-      "bundles": [
-        // ... other bundles
-        "dsh-skin-chatlab"
-      ]
-    }
-  }
-}
+"@liyuk/dsh-skin-chatlab-core",
+"@liyuk/dsh-skin-feishu"
 ```
 
-Then restart DSH Web:
+### Option 2: Feishu only
 
 ```sh
-dsh --profile web
+dsh plugin --profile web add @liyuk/dsh-skin-chatlab-core @liyuk/dsh-skin-feishu
 ```
 
-Open Settings → find "ChatLab 皮肤" in the left nav → pick "飞书".
+### Option 3: Base only (no skin, default look)
+
+```sh
+dsh plugin --profile web add @liyuk/dsh-skin-chatlab-core
+```
+
+> **Key**: whichever way you install, add the packages you want to the profile's `bundles` list — DSH only loads bundles listed there.
+
+Restart DSH Web, open Settings → "ChatLab 皮肤" → pick "飞书".
+
+---
+
+## Features
+
+- **Base + skin packages**: skins are independent npm packages registered via `ctx.chatlab.registerSkin`; adding a skin = creating a new package, no base changes
+- **Settings switcher**: pill buttons; switching auto-refreshes, dark mode hot-switches
+- **Feishu skin**:
+  - Workspaces → "项目组" (colored rounded-square + initial)
+  - Sessions → "联系人" (round avatar + last-message preview + unread dot, auto-clears)
+  - Bubbled chat: blue bubbles + read check for you, gray for the assistant
+  - Top brand: DeepSeek brand kept + skin-name badge
+- **Last-message preview + unread**: loopback RPC reads session logs (live + cold), data layer decoupled from skins
+- **Purely additive**: "无皮肤" fully unloads and restores DSH defaults
 
 ---
 
 ## Usage
 
-After installing and restarting, open DSH Web settings (bottom-left gear) and find "**ChatLab 皮肤**" in the left navigation.
+Open Settings → "**ChatLab 皮肤**" in the left nav.
 
 ### Switching skins
 
-- The settings panel shows a row of **pill buttons**: 无皮肤 / 飞书 / Slack / WeChat / … / WhatsApp
-- Clicking a skin shows "正在刷新…" and the page auto-reloads
-- Unimplemented placeholder skins are grayed out ("待做") and unclickable
-- "无皮肤" fully unloads the skin and restores DSH defaults
+- Row of **pill buttons**: 无皮肤 / 飞书 / …
+- Clicking shows a refresh notice and auto-reloads
+- Unimplemented skins are grayed out ("待做"), unclickable
+- "无皮肤" fully restores defaults
 
 ### Dark mode
 
-- The "深色模式" toggle hot-switches (no page reload)
-- It delegates to DSH's own theme system, so light/dark palettes follow automatically
+- "深色模式" toggle hot-switches (no reload)
+- Delegates to DSH's theme system, light/dark follow automatically
 
-### Feishu skin effects (the only complete skin today)
+### Feishu skin effects
 
 | Area | Effect |
 |---|---|
-| Left workspaces | Become "项目组": colored rounded-square + initial |
-| Left session list | Become "联系人": each session has a **round avatar** and a **last-message preview** line |
-| Unread | Red dot on the avatar's top-right; it auto-clears once you open the session |
-| Chat window | Your messages are **blue bubbles with a read check**; AI replies are gray text |
-| Top brand | The DeepSeek whale becomes "Feishu birds + DeepSeek HARNESS + 飞书皮肤" badge |
-
-> Note: skins only change appearance — they never touch DSH chat data, session logic, or existing plugins. "无皮肤" fully restores defaults.
-
-### First-use note
-
-- On first load, all historical sessions use their **current last message as the "read" baseline**, so you won't see a wall of red dots
-- After that, only genuinely new messages light the dot, cleared on open
+| Left workspaces | "项目组": colored rounded-square + initial |
+| Left session list | "联系人": round avatar + last-message preview |
+| Unread | Red dot on avatar top-right, cleared on open |
+| Chat window | Blue bubbles + read check; AI replies gray |
+| Top brand | DeepSeek brand + skin-name badge |
 
 ---
 
 ## Developing a skin
 
-Add an entry to the `SKINS` array in `src/skins/registry.js` — no shared logic changes needed:
+**Create a new skin package** (recommended):
 
-```js
-{
-  id: "slack",
-  name: "Slack",
-  desc: "Slack style",
-  ready: true,               // false = placeholder (grayed out), true = switchable
-  tokens: {                  // overrides --dsw-alias-* design tokens
-    light: { "brand-primary": "#611F69" },
-    dark:  { "brand-primary": "#9C4AA8" }
-  },
-  css: ""                    // skin-specific rules (bubble shape/radius/avatar size...)
-}
-```
+1. Copy `packages/skin-feishu` → `packages/skin-slack`
+2. Change `package.json` name to `@liyuk/dsh-skin-slack`
+3. In `src/index.js`, `ctx.chatlab.registerSkin({ id, name, desc, ready, tokens, css })`
+4. Replace `css`/`tokens` with the target skin's style
+5. `npm run build`, then `node scripts/publish.mjs` to publish
 
 ### Skin contract
 
@@ -127,21 +117,30 @@ Add an entry to the `SKINS` array in `src/skins/registry.js` — no shared logic
 ## Architecture
 
 ```
-SKINS[]            each skin declares "appearance": tokens (light/dark) + CSS
-common layer       skin-agnostic skeleton:
-                   - preference read/write (localStorage)
-                   - reflect data-chatlab-skin onto <html>
-                   - last-message preview + unread dot + avatar injection (data logic shared)
-                   - settings switcher
-host half          registers /dsh-skin-chatlab loopback RPC, reads session logs for preview/unread
+packages/
+  core/          base: registry service + switcher + decoration + preview/unread RPC
+  skin-feishu/   Feishu skin package (independent plugin, registers via chatlab service)
+  chatlab/       aggregate package (depends on core + feishu)
 ```
 
-Key implementation constraints (DSH is a React app):
+**Cross-plugin registration**:
+
+```js
+// core: expose service
+ctx.provide("chatlab", skinRegistry);
+
+// skin-feishu: inject service and register
+inject: ["chatlab"],
+apply(ctx) { ctx.chatlab.registerSkin({ id:"feishu", name:"飞书", css: FEISHU_CSS }); }
+```
+
+**Key implementation constraints** (DSH is a React app):
 
 - **Never observe the whole `body` with MutationObserver** (cripples React reconcile)
 - **Never `innerHTML=""` a React node, never `insertBefore` before a React node** (triggers `removeChild` crashes)
 - Decoration only `appendChild`s its own nodes, positions them with CSS Grid/flex, never moves React nodes
-- Dark mode delegates to DSH's `ctx.theme.setTheme()`; we don't maintain our own theme
+- Dark mode delegates to DSH's `ctx.theme.setTheme()`
+- **Skin packages register after core**: core subscribes to registration events and rebuilds CSS on skin register (otherwise skin styles are lost)
 
 ---
 
@@ -149,9 +148,9 @@ Key implementation constraints (DSH is a React app):
 
 Welcome — let's turn more chat apps into skins!
 
-- **Getting started**: branch workflow, code layout, and how to add a skin — see [CONTRIBUTING.md](./CONTRIBUTING.md)
-- **Releasing**: dev/main branches + tag-triggered publish — see [RELEASING.md](./RELEASING.md)
-- **Adding a skin**: add one entry to `src/skins/registry.js`, no core changes
+- **Getting started**: [CONTRIBUTING.md](./CONTRIBUTING.md)
+- **Releasing**: [RELEASING.md](./RELEASING.md)
+- **Adding a skin**: copy `packages/skin-feishu` to start a new package
 
 Ideas and skin suggestions are welcome — open an Issue or PR.
 

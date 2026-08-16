@@ -25,29 +25,44 @@ git merge dev
 git push origin main
 ```
 
-## 发布到 npm
+## 发布到 npm（monorepo 多包）
 
-发布由 GitHub Actions 自动完成，**打 tag 即发布**：
+发布由 GitHub Actions 自动完成，**打 tag 即发布全部包**（core → skin-feishu → chatlab）：
 
 ```sh
 git checkout main
 git pull origin main
 
-# 自动 bump 版本号 + 打 tag（patch / minor / major）
-npm version patch    # 1.0.0 → 1.0.1
-npm version minor    # 1.0.0 → 1.1.0
-npm version major    # 1.0.0 → 2.0.0
+# 手动 bump 各包版本号（monorepo 无单一 package.json 版本）
+# 需要更新哪个包就改哪个包的 packages/<name>/package.json 的 version，
+# 并打 tag 如 v2.0.0 / v1.0.1
+git add -A && git commit -m "chore: release vX.Y.Z"
 
-# 推分支 + tag（tag 触发 workflow 自动 npm publish）
+# 推分支 + tag（tag 触发 workflow 自动跑 node scripts/publish.mjs）
 git push origin main --follow-tags
 ```
 
-`npm version` 会：
-1. 改 `package.json` 的 `version`
-2. 打一个 `vX.Y.Z` 的 tag
-3. 提交这个改动
+推 tag 后，`.github/workflows/publish.yml` 会：
+1. `npm install`
+2. `npm run build`（esbuild 多包打包）
+3. `node scripts/publish.mjs`（按依赖顺序发布 core → skin-feishu → chatlab）
 
-推 tag 后，`.github/workflows/publish.yml` 会自动运行并 `npm publish`，无需手动发包。
+也可手动本地发布：
+
+```sh
+node scripts/publish.mjs          # 正式发布
+node scripts/publish.mjs --dry-run  # 只检查不发布
+```
+
+## 版本号约定
+
+三个包独立版本号，但**建议保持同步**（改一个就一起 bump）：
+
+| 包 | 当前 |
+|---|---|
+| `@liyuk/dsh-skin-chatlab-core` | 1.0.0 |
+| `@liyuk/dsh-skin-feishu` | 1.0.0 |
+| `@liyuk/dsh-skin-chatlab` | 2.0.0 |
 
 ## 一次性配置（仓库 owner）
 

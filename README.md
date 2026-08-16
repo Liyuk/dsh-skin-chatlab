@@ -2,112 +2,102 @@
 
 [English](./README.en.md) · 简体中文
 
-一个为 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 打造的可扩展聊天皮肤插件。核心是一套**皮肤注册机制 + 切换器**，把聊天界面一键换成飞书 / Slack / 微信 / iMessage / WhatsApp 等任意聊天软件的样式。
+为 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 打造的可扩展聊天皮肤 **monorepo**。核心是「基座 + 皮肤包」的架构：基座提供注册表与切换器，每套皮肤是独立 npm 包，即插即用、互不干扰。
 
-飞书皮肤是首发皮肤；其余为占位口子。每套皮肤只负责**外观**（布局 / 配色 / 气泡样式），**绝不侵入 DSH 的聊天逻辑**，也不改动任何现有插件。
+## 包结构
 
----
+| 包 | 版本 | 作用 |
+|---|---|---|
+| [`@liyuk/dsh-skin-chatlab-core`](./packages/core/README.md) | 1.0.0 | **基座**：皮肤注册服务、切换器、装饰逻辑、预览/未读 RPC |
+| [`@liyuk/dsh-skin-feishu`](./packages/skin-feishu/README.md) | 1.0.0 | **飞书皮肤**：工作区=项目组、会话=联系人、聊天气泡化 |
+| [`@liyuk/dsh-skin-chatlab`](./packages/chatlab/README.md) | 2.0.0 | **聚合包**：一键依赖 core + feishu |
 
-## 特性
-
-- **皮肤注册表**：`SKINS[]` 数组，每套皮肤只声明 `{ id, name, desc, tokens, css }`，加新皮肤不改任何通用逻辑
-- **设置面板切换器**：设置页新增「ChatLab 皮肤」区块，胶囊按钮一键切换；切皮肤自动刷新，深色模式热切换
-- **飞书皮肤**（首发，完整实现）：
-  - 工作区 = 项目组（Meego 风彩色方块 + 首字母）
-  - 会话 = 联系人（确定性头像 + 最近回复预览 + 未读红点，读后自动消除）
-  - 聊天气泡化：自己蓝色气泡 + 已读标记，对方灰色气泡
-  - 品牌 logo：飞书双鸟 + "DeepSeek HARNESS" + 「飞书皮肤」徽章
-- **最近回复预览 + 未读**：通过 loopback RPC 读取会话日志（live + 冷会话都支持），数据层与皮肤解耦
-- **纯增量**：切到「无皮肤」彻底卸载，恢复 DSH 默认外观
-
----
+每套皮肤只负责**外观**（布局 / 配色 / 气泡样式），**绝不侵入 DSH 的聊天逻辑**，也不改动任何现有插件。
 
 ## 安装
+
+### 方式一：装聚合包（一键带基座 + 飞书）
 
 ```sh
 dsh plugin --profile web add @liyuk/dsh-skin-chatlab
 ```
 
-或在 profile 的 `package.json` 中手动挂载：
+然后在 profile `package.json` 的 `dsh.profile.bundles` 加入：
 
 ```jsonc
-{
-  "dependencies": {
-    "@liyuk/dsh-skin-chatlab": "^1.0.0"
-  },
-  "dsh": {
-    "profile": {
-      "bundles": [
-        // ... 其它 bundle
-        "dsh-skin-chatlab"
-      ]
-    }
-  }
-}
+"@liyuk/dsh-skin-chatlab-core",
+"@liyuk/dsh-skin-feishu"
 ```
 
-然后重启 DSH Web：
+### 方式二：只装飞书
 
 ```sh
-dsh --profile web
+dsh plugin --profile web add @liyuk/dsh-skin-chatlab-core @liyuk/dsh-skin-feishu
 ```
 
-打开设置 → 左侧找到「ChatLab 皮肤」，选择「飞书」即可。
+### 方式三：只装基座（无皮肤，默认外观）
+
+```sh
+dsh plugin --profile web add @liyuk/dsh-skin-chatlab-core
+```
+
+> **关键**：无论哪种方式，都要把「要用到的包」加进 profile 的 `bundles` 列表，DSH 才会加载它们。
+
+装完重启 DSH Web，打开设置 → 「ChatLab 皮肤」→ 选「飞书」。
+
+---
+
+## 特性
+
+- **基座 + 皮肤包架构**：皮肤是独立 npm 包，通过 `ctx.chatlab.registerSkin` 注册到基座，加新皮肤 = 新建一个包，不改基座
+- **设置面板切换器**：胶囊按钮一键切换；切皮肤自动刷新，深色模式热切换
+- **飞书皮肤**：
+  - 工作区 = 项目组（彩色方块 + 首字母）
+  - 会话 = 联系人（圆形头像 + 最近回复预览 + 未读红点，读后消除）
+  - 聊天气泡化：自己蓝色气泡 + 已读标记，对方灰色正文
+  - 顶部保留 DeepSeek 品牌 + 皮肤名徽章
+- **最近回复预览 + 未读**：loopback RPC 读会话日志（live + 冷会话），数据层与皮肤解耦
+- **纯增量**：切「无皮肤」彻底卸载，恢复 DSH 默认外观
 
 ---
 
 ## 使用指南
 
-安装并重启后，打开 DSH Web 左下角「设置」，在左侧导航找到「**ChatLab 皮肤**」。
+打开设置 → 左侧「**ChatLab 皮肤**」。
 
 ### 切换皮肤
 
-- 设置面板里是一排**胶囊按钮**：无皮肤 / 飞书 / Slack / 微信 / … / WhatsApp
-- 点击某个皮肤 → 弹提示「正在刷新」→ 页面自动刷新 → 生效
-- 未实现的占位皮肤显示为灰色「待做」，不可点击
-- 选「无皮肤」彻底卸载皮肤，恢复 DSH 默认外观
+- 一排**胶囊按钮**：无皮肤 / 飞书 / …
+- 点皮肤 → 提示刷新 → 页面自动刷新生效
+- 未实现的皮肤显示灰色「待做」，不可点
+- 选「无皮肤」彻底卸载，恢复默认
 
 ### 深色模式
 
-- 设置面板里的「深色模式」开关，**热切换**（不刷新页面）
-- 底层调用 DSH 自己的主题系统，明暗两套配色自动跟随
+- 「深色模式」开关**热切换**（不刷新）
+- 底层调 DSH 主题系统，明暗自动跟随
 
-### 飞书皮肤的效果（当前唯一完整皮肤）
+### 飞书皮肤效果
 
 | 区域 | 效果 |
 |---|---|
-| 左侧工作区 | 变成「项目组」：彩色圆角方块 + 项目名首字母 |
-| 左侧会话列表 | 变成「联系人」：每个会话一个**圆形头像**，第二行显示**最近一条消息预览** |
-| 未读消息 | 头像右上角红点；点开该会话后红点自动消失（读后即已读） |
-| 聊天窗口 | 自己发的消息是**蓝色气泡 + 已读标记**，AI 回复是灰色正文 |
-| 顶部品牌 | DeepSeek 鲸鱼换成「飞书双鸟 + DeepSeek HARNESS + 飞书皮肤」徽章 |
-
-> 说明：皮肤只改外观，不动 DSH 的聊天数据、会话逻辑或任何现有插件；切到「无皮肤」即完整还原。
-
-### 首次使用注意
-
-- 首次加载皮肤时，所有历史会话会以**当前最后一条消息为「已读基线」**，不会满屏红点
-- 之后只有真正的新消息才会亮红点，点开即消除
+| 左侧工作区 | 「项目组」：彩色圆角方块 + 首字母 |
+| 左侧会话列表 | 「联系人」：圆形头像 + 最近消息预览 |
+| 未读消息 | 头像右上角红点，点开消除 |
+| 聊天窗口 | 蓝色气泡 + 已读标记；AI 回复灰色正文 |
+| 顶部品牌 | DeepSeek 品牌 + 皮肤名徽章 |
 
 ---
 
 ## 皮肤开发：加一套新皮肤
 
-在 `src/skins/registry.js` 的 `SKINS` 数组里加一项即可，无需改动通用逻辑：
+**新建一个皮肤包**（推荐）：
 
-```js
-{
-  id: "slack",
-  name: "Slack",
-  desc: "Slack 风格",
-  ready: true,               // false = 占位(置灰不可点)，true = 可切换
-  tokens: {                  // 覆盖 --dsw-alias-* 设计 token
-    light: { "brand-primary": "#611F69" },
-    dark:  { "brand-primary": "#9C4AA8" }
-  },
-  css: ""                    // 皮肤专属规则(气泡形状/圆角/头像尺寸等)
-}
-```
+1. 复制 `packages/skin-feishu` 为 `packages/skin-slack`
+2. 改 `package.json` 的 name 为 `@liyuk/dsh-skin-slack`
+3. 在 `src/index.js` 里 `ctx.chatlab.registerSkin({ id, name, desc, ready, tokens, css })`
+4. 把 `css`/`tokens` 换成目标皮肤的风格
+5. `npm run build` 打包，`node scripts/publish.mjs` 发布
 
 ### 皮肤契约
 
@@ -116,40 +106,49 @@ dsh --profile web
 | `id` | string | localStorage 唯一 key，也写进 `data-chatlab-skin` |
 | `name` | string | 设置面板显示名 |
 | `desc` | string | 一句话说明 |
-| `ready` | boolean | `false` = 占位(置灰)；`true` = 可切换 |
+| `ready` | boolean | `false` = 占位（置灰）；`true` = 可切换 |
 | `tokens` | `{light, dark}` | 覆盖 `--dsw-alias-*` 设计 token |
-| `css` | string | 皮肤专属附加规则 |
+| `css` | string | 皮肤专属规则 |
 
 ---
 
 ## 架构
 
 ```
-SKINS[]            每套皮肤只声明"外观"：token(明/暗) + CSS
-common layer       与皮肤无关的骨架：
-                   - 偏好读写(localStorage)
-                   - data-chatlab-skin 反射到 <html>
-                   - 最近回复预览 + 未读红点 + 头像注入(数据逻辑皮肤无关)
-                   - 设置面板切换器
-host half          注册 /dsh-skin-chatlab loopback RPC，读会话日志供预览/未读
+packages/
+  core/          基座：注册服务 + 切换器 + 装饰 + 预览/未读 RPC
+  skin-feishu/   飞书皮肤包（独立插件，注入 chatlab 服务注册自己）
+  chatlab/       聚合包（依赖 core + feishu）
 ```
 
-关键实现约束（DSH 是 React 应用）：
+**跨插件注册机制**：
+
+```js
+// core：暴露服务
+ctx.provide("chatlab", skinRegistry);
+
+// skin-feishu：注入服务并注册
+inject: ["chatlab"],
+apply(ctx) { ctx.chatlab.registerSkin({ id:"feishu", name:"飞书", css: FEISHU_CSS }); }
+```
+
+**关键实现约束**（DSH 是 React 应用）：
 
 - **绝不用 MutationObserver 观察整个 body**（会拖垮 React reconcile）
 - **绝不用 `innerHTML=""` 删 React 节点、绝不 insertBefore 到 React 节点前**（会触发 `removeChild` 崩溃）
 - 装饰只 `appendChild` 自己的节点，用 CSS Grid/flex 排位，不移动 React 的节点
-- 深色模式交给 DSH 的 `ctx.theme.setTheme()`，不自己维护 theme
+- 深色模式交给 DSH 的 `ctx.theme.setTheme()`
+- **皮肤包在 core 之后注册**：core 订阅注册事件，皮肤注册后重建 CSS（否则皮肤样式丢失）
 
 ---
 
 ## 贡献 / 一起共建
 
-欢迎一起把更多聊天软件做成皮肤！
+欢迎把更多聊天软件做成皮肤！
 
-- **开发入门**：分支分工、代码结构、加皮肤流程见 [CONTRIBUTING.md](./CONTRIBUTING.md)
-- **发布流程**：dev/main 分支 + tag 触发见 [RELEASING.md](./RELEASING.md)
-- **加一套皮肤**：在 `src/skins/registry.js` 加一项即可，不改 core 逻辑
+- **开发入门**：[CONTRIBUTING.md](./CONTRIBUTING.md)
+- **发布流程**：[RELEASING.md](./RELEASING.md)
+- **加皮肤**：复制 `packages/skin-feishu` 起一个新包
 
 有任何想法或皮肤创意，欢迎提 Issue / PR。
 

@@ -13,41 +13,54 @@ main  稳定分支：打 vX.Y.Z tag 才会触发 npm 发布
 - **开发**：从 `dev` 拉分支，改完推 `dev`，或直接推 `dev`。
 - **发布**：`dev` 稳定后合入 `main`，打 tag 自动发 npm（见 [RELEASING.md](./RELEASING.md)）。
 
-## 代码结构
+## 代码结构（monorepo）
 
 ```
-src/
-  index.js         入口(factory + apply)
-  skins/           皮肤资产（纯数据，不依赖 react）
-    feishu.js      飞书 token + CSS + brand logo SVG
-    registry.js    皮肤注册表 + 占位皮肤 + tokenBlock
-  core/            通用骨架
-    prefs.js       偏好读写
-    utils.js       norm/hashHue
-    avatar.js      makeAvatar
-    session.js     会话数据
-    dom.js         DOM helpers
-    decorators.js  装饰逻辑
-    settings.js    设置面板(react 作参数)
-    theme.js       CSS 构建
-lib/
-  client.js        esbuild 打包产物（勿手改，改 src/ 后 npm run build）
-  index.js         host 端（预览/未读 RPC）
+packages/
+  core/                基座 @liyuk/dsh-skin-chatlab-core
+    src/
+      index.js         core 入口(factory + apply + ctx.provide("chatlab"))
+      registry.js      皮肤注册服务(registerSkin + 订阅)
+      prefs.js         偏好读写
+      utils.js         norm/hashHue
+      avatar.js        makeAvatar
+      session.js       会话数据
+      dom.js           DOM helpers
+      decorators.js    装饰逻辑
+      settings.js      设置面板(react 作参数)
+      theme.js         CSS 构建
+    lib/
+      client.js        esbuild 打包产物（勿手改，改 src/ 后 npm run build）
+      index.js         host 端（预览/未读 RPC）
+  skin-feishu/          飞书皮肤包 @liyuk/dsh-skin-feishu
+    src/
+      feishu.js        飞书 token + CSS（纯数据）
+      index.js         皮肤插件入口(注入 chatlab 服务注册自己)
+    lib/
+      client.js        打包产物
+      index.js         host 端(no-op)
+  chatlab/              聚合包 @liyuk/dsh-skin-chatlab(仅依赖声明)
+scripts/
+  build.mjs            esbuild 多包打包
+  publish.mjs          按依赖顺序发布
 ```
 
 ## 开发流程
 
 ```sh
 npm install
-# 改 src/ 下的代码
-npm run build        # 重新打包 lib/client.js
+# 改 packages/ 下各包的 src/
+npm run build        # 重新打包各包 lib/client.js
+npm test             # 跑单测
 ```
 
-**重要**：`lib/client.js` 是构建产物，**不要手改**。改 `src/` 后必须 `npm run build`。
+**重要**：`lib/client.js` 是构建产物，**不要手改**。改 `packages/*/src/` 后必须 `npm run build`。
 
 ## 加一套新皮肤
 
-在 `src/skins/registry.js` 的 `SKINS` 数组加一项，或新建 `src/skins/xxx.js` 再 import。皮肤只声明 `{ id, name, desc, ready, tokens, css }`，不改 core 逻辑。
+**新建一个皮肤包**（推荐）——复制 `packages/skin-feishu` 为 `packages/skin-xxx`，改 `package.json` name 和 `src/` 里的皮肤数据，再 `ctx.chatlab.registerSkin({ id, name, desc, ready, tokens, css })` 注册。
+
+关键：皮肤通过 `inject: ["chatlab"]` 拿到 core 的服务，**不 import core 的模块**（两个独立 bundle，运行时靠 cordis 服务通信）。
 
 ## 几条硬约束（改样式前必读）
 
