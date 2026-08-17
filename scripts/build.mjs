@@ -1,24 +1,8 @@
-// monorepo build：esbuild 打包 core 和 skin-feishu 的 client bundle。
-// 产物放到各包的 lib/client.js。
+// monorepo build：esbuild 打包各包的 client bundle。
+// 产物放到各包的 lib/client.js。打包目标见 bundles.mjs。
 import { build } from "esbuild";
-import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = resolve(__dirname, "..");
-
-const targets = [
-  {
-    entry: "packages/core/src/index.js",
-    outfile: "packages/core/lib/client.js",
-    external: ["react"]
-  },
-  {
-    entry: "packages/skin-feishu/src/index.js",
-    outfile: "packages/skin-feishu/lib/client.js",
-    external: [] // skin-feishu 不依赖 react
-  }
-];
+import { resolve } from "node:path";
+import { root, targets } from "./bundles.mjs";
 
 for (const t of targets) {
   await build({

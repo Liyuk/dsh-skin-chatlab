@@ -12,6 +12,9 @@ npm-debug.log*
 dist/
 *.tsbuildinfo
 
+# dev hot-reload revision counter (scripts/reload-host.mjs)
+.devrev
+
 # Editor
 .vscode/
 .idea/
