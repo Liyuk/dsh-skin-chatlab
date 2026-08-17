@@ -321,7 +321,7 @@
     var unread = typeof lastSeq === "number" && lastSeq > readSeq;
     return { unread, markReadTo: null };
   }
-  function buildActiveSet(snapFull) {
+  function buildActiveSet(snapFull, runningOf) {
     var out = {};
     if (!snapFull || !snapFull.byId) return out;
     var direct = {};
@@ -329,7 +329,8 @@
     for (var i = 0; i < ids.length; i++) {
       var id = ids[i];
       var s = snapFull.byId[id];
-      if (s && (s.running || s.pendingInteraction)) direct[id] = true;
+      var r = runningOf ? runningOf(id) : !!(s && s.running);
+      if (s && (r || s.pendingInteraction)) direct[id] = true;
     }
     for (var id2 in direct) {
       out[id2] = true;
@@ -344,7 +345,7 @@
     }
     return out;
   }
-  function buildRunningSet(snapFull) {
+  function buildRunningSet(snapFull, runningOf) {
     var out = {};
     if (!snapFull || !snapFull.byId) return out;
     var direct = {};
@@ -352,7 +353,8 @@
     for (var i = 0; i < ids.length; i++) {
       var id = ids[i];
       var s = snapFull.byId[id];
-      if (s && s.running) direct[id] = true;
+      var r = runningOf ? runningOf(id) : !!(s && s.running);
+      if (s && r) direct[id] = true;
     }
     for (var id2 in direct) {
       out[id2] = true;
@@ -674,9 +676,6 @@
     if (clock) status.insertBefore(wrap, clock);
     else status.appendChild(wrap);
   }
-  function hasTurnStatus() {
-    return !!document.querySelector('[class*="turnStatus"]:not([class*="turnStatusClock"])');
-  }
   function refresh(ctx) {
     var snap = listSnapshot(ctx);
     var idByTitle = {};
@@ -686,9 +685,17 @@
         if (s && s.displayTitle) idByTitle[norm(s.displayTitle)] = s.id;
       }
     }
-    var active = buildActiveSet(snap);
-    var running = buildRunningSet(snap);
-    if (snap && snap.current && hasTurnStatus()) active[snap.current] = true;
+    var runningOf = null;
+    if (ctx.sessions && typeof ctx.sessions.get === "function") {
+      runningOf = function(id) {
+        var sess = ctx.sessions.get(id);
+        if (sess) return !!sess.running;
+        var s2 = snap && snap.byId ? snap.byId[id] : null;
+        return !!(s2 && s2.running);
+      };
+    }
+    var active = buildActiveSet(snap, runningOf);
+    var running = buildRunningSet(snap, runningOf);
     decorateBrand();
     decorateSidebar(snap, idByTitle, active);
     decorateProjects();

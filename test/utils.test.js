@@ -144,6 +144,28 @@ describe("buildRunningSet", () => {
     expect(r.childWait).toBe(undefined); // 只 pending，不算 running
   });
 
+  it("runningOf 回调覆盖快照 running(实时 running 优先，修复蓝点时有时无)", () => {
+    // 快照里 running=false(拉取型延迟)，但实时 session.running=true → 应算 running/active
+    const s = { byId: { a: { running: false, blank: false } }, ids: ["a"] };
+    const liveRunning = (id) => id === "a"; // 模拟 ctx.sessions.get(a).running === true
+    expect(buildRunningSet(s, liveRunning)).toEqual({ a: true });
+    expect(buildActiveSet(s, liveRunning)).toEqual({ a: true });
+  });
+
+  it("runningOf 回调覆盖快照 running(实时 running=false 时清除 stale true)", () => {
+    // 快照里 running=true(stale)，但实时 session.running=false → 不应算 running
+    const s = { byId: { a: { running: true, blank: false } }, ids: ["a"] };
+    const liveRunning = () => false; // 模拟 session.running === false
+    expect(buildRunningSet(s, liveRunning)).toEqual({});
+    expect(buildActiveSet(s, liveRunning)).toEqual({});
+  });
+
+  it("runningOf 为 null/undefined 时回退快照 running", () => {
+    const s = { byId: { a: { running: true, blank: false } }, ids: ["a"] };
+    expect(buildRunningSet(s, null)).toEqual({ a: true });
+    expect(buildActiveSet(s, undefined)).toEqual({ a: true });
+  });
+
   it("空/无效快照返回空集", () => {
     expect(buildRunningSet(null)).toEqual({});
     expect(buildRunningSet({})).toEqual({});

@@ -82,13 +82,16 @@ export function unreadDecision(readSeq, lastSeq, isActive, isCurrent) {
 // 主会话派子代理去跑时父会话 running 可能为 false，但子代理(running/pending)在工作，
 // 沿 parentId 把活跃传导到祖先行——与 DSH 原生 runningSubagentCount 同语义，
 // 避免只靠 running 漏掉子代理驱动的任务。
-export function buildActiveSet(snapFull) {  var out = {};  if (!snapFull || !snapFull.byId) return out;
+// runningOf(id)：可选回调，用于用"实时 running"(如 ctx.sessions.get(id).running，推送型)
+// 覆盖快照里的 running(拉取型，有延迟)；缺省时回退 s.running。
+export function buildActiveSet(snapFull, runningOf) {  var out = {};  if (!snapFull || !snapFull.byId) return out;
   var direct = {};
   var ids = snapFull.ids || [];
   for (var i = 0; i < ids.length; i++) {
     var id = ids[i];
     var s = snapFull.byId[id];
-    if (s && (s.running || s.pendingInteraction)) direct[id] = true;
+    var r = runningOf ? runningOf(id) : !!(s && s.running);
+    if (s && (r || s.pendingInteraction)) direct[id] = true;
   }
   for (var id2 in direct) {
     out[id2] = true;
@@ -107,7 +110,8 @@ export function buildActiveSet(snapFull) {  var out = {};  if (!snapFull || !sna
 // 从会话列表快照构建"正在运行"会话集合(只 running + 子代理传导，不含 pendingInteraction)。
 // 用途：压未读红点。pendingInteraction(等批准/审阅/问答)是"会话停下来等你处理"，
 // 不是"正在运行"，它最需要红点提醒，不该被压掉——故与蓝点的 active 集(含 pendingInteraction)分开。
-export function buildRunningSet(snapFull) {
+// runningOf(id)：同 buildActiveSet，可选实时 running 回调。
+export function buildRunningSet(snapFull, runningOf) {
   var out = {};
   if (!snapFull || !snapFull.byId) return out;
   var direct = {};
@@ -115,7 +119,8 @@ export function buildRunningSet(snapFull) {
   for (var i = 0; i < ids.length; i++) {
     var id = ids[i];
     var s = snapFull.byId[id];
-    if (s && s.running) direct[id] = true;
+    var r = runningOf ? runningOf(id) : !!(s && s.running);
+    if (s && r) direct[id] = true;
   }
   for (var id2 in direct) {
     out[id2] = true;

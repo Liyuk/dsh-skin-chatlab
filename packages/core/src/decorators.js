@@ -206,9 +206,8 @@ export function decorateTurnStatus() {
 }
 
 // 当前会话是否处于"正在思考/输出"状态(原生 turnStatus 元素存在)。
-// 这是比 running 字段更可靠的进行中信号：running 靠 agent/status 翻转帧推送，
-// 思考起步瞬间有延迟窗口；而 turnStatus 在回合全程(思考+流式输出)持续存在。
-// 用于给当前会话蓝点兜底，避免"正在思考输出但侧栏没蓝点"。
+// 已废弃：turnStatus 的渲染条件就是 session.running(与蓝点同源)，running=false 时
+// turnStatus 也不存在，故此兜底无效。改用实时的 ctx.sessions.get(id).running(见 refresh)。
 export function hasTurnStatus() {
   return !!document.querySelector('[class*="turnStatus"]:not([class*="turnStatusClock"])');
 }
@@ -225,11 +224,20 @@ export function refresh(ctx) {
   // 活跃会话集(running/pendingInteraction/子代理)：decorateSidebar 用它亮蓝点。
   // 压红点则用 running 集(不含 pendingInteraction)——等批准/审阅/问答的会话
   // 是"等你处理"，不该被压红点，反而该亮红点提醒。
-  var active = buildActiveSet(snap);
-  var running = buildRunningSet(snap);
-  // 兜底：当前会话正在思考/输出(turnStatus 存在)时，即使 running 字段因 agent/status
-  // 翻转帧时序延迟还没到 true，也强制亮蓝点(侧栏当前行的进行中指示)。
-  if (snap && snap.current && hasTurnStatus()) active[snap.current] = true;
+  // 关键：running 用实时的 ctx.sessions.get(id).running(推送型，status 帧驱动)，
+  // 而不是 snap.byId.running(拉取型，refreshList 才有)——后者在 agent 起步/结束瞬间
+  // 有延迟，导致蓝点"时有时无"。
+  var runningOf = null;
+  if (ctx.sessions && typeof ctx.sessions.get === "function") {
+    runningOf = function (id) {
+      var sess = ctx.sessions.get(id);
+      if (sess) return !!sess.running; // live session：实时 running
+      var s = snap && snap.byId ? snap.byId[id] : null;
+      return !!(s && s.running); // cold：回退快照
+    };
+  }
+  var active = buildActiveSet(snap, runningOf);
+  var running = buildRunningSet(snap, runningOf);
   decorateBrand();
   decorateSidebar(snap, idByTitle, active);
   decorateProjects();
