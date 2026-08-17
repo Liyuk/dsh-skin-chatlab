@@ -4,6 +4,7 @@ import { skinRegistry } from "./registry.js";
 export const KEY_SKIN = "dsh-skin-chatlab.skin";   // 当前皮肤 id（"none" = 关闭）
 export const KEY_THEME = "dsh-skin-chatlab.theme"; // "light" | "dark"
 export const KEY_READ = "dsh-skin-chatlab.read";   // { [sessionId]: lastSeq 已读 }
+export const KEY_AVATAR_MAP = "dsh-skin-chatlab.avatar"; // { [sessionId]: {seed,url,at} } id→头像 映射表(根治两端头像不一致)
 
 export function readSkin() {
   try {

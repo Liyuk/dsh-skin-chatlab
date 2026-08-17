@@ -1,6 +1,6 @@
 {
   "name": "@liyuk/dsh-skin-chatlab-core",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "ChatLab 基座：可扩展聊天皮肤插件的核心——皮肤注册表、切换器、装饰逻辑、设置面板。皮肤数据由各皮肤包(如 @liyuk/dsh-skin-feishu)通过 ctx.chatlab.registerSkin 注入。",
   "license": "MIT",
   "type": "module",

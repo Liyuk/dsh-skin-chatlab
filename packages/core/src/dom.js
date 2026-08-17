@@ -1,5 +1,5 @@
 // DOM helpers：会话行标题/id 反查 + 预览注入 + 未读红点。
-import { norm } from "./utils.js";
+import { norm, clipPreview, unreadDecision } from "./utils.js";
 import { readSeqs, markRead } from "./session.js";
 
 export function titleOf(row) {
@@ -8,54 +8,51 @@ export function titleOf(row) {
 }
 
 export function rowId(row, idByTitle) {
-  var id = row.getAttribute("data-session-id") || row.getAttribute("data-id") || row.getAttribute("data-key");
+  // 我们 decorateSidebar 会让出的 id 落回自己加的 data-cl-session-id，优先它。
+  var id = row.getAttribute("data-cl-session-id") ||
+    row.getAttribute("data-session-id") || row.getAttribute("data-id") || row.getAttribute("data-key");
   if (id) return id;
   return idByTitle[norm(titleOf(row))];
 }
 
 export function addPreview(row, text) {
-  if (!text) return;
+  // 预览单行，长了截断，避免把整段长文本塞进 DOM(飞书预览一两行即可)。
+  var clipped = clipPreview(text);
+  if (!clipped) return;
   var existing = row.querySelector(".cl-preview");
   if (existing) {
     // 已有 preview 就更新文本(新回复来了内容会变)，不重复建节点。
-    if (existing.textContent !== text) existing.textContent = text;
+    if (existing.textContent !== clipped) existing.textContent = clipped;
     return;
   }
   var preview = document.createElement("div");
   preview.className = "cl-preview";
-  preview.textContent = text;
+  preview.textContent = clipped;
   // 只 append 到行尾，绝不移/包 React 的 title 节点(移动 React 节点会导致后续
   // reconcile 的 removeChild 崩溃)。
   row.appendChild(preview);
 }
 
-export function applyUnread(row, id, lastSeq, current) {
+export function applyUnread(row, id, lastSeq, current, active) {
   var m = readSeqs();
-  if (!(id in m)) {
-    if (typeof lastSeq === "number" && lastSeq > 0) markRead(id, lastSeq);
-    row.classList.remove("cl-unread");
-    var d0 = row.querySelector(".cl-unread-dot");
-    if (d0) d0.remove();
-    return;
-  }
-  var readSeq = m[id];
+  // 无已读记录 = 从未读过(readSeq 0)，符合飞书"没读过的消息就亮红点"语义。
+  var readSeq = (id in m) ? m[id] : 0;
+  var isActive = active && active[String(id)];
   var isCurrent = id === current;
-  if (isCurrent) {
-    if (lastSeq > readSeq) markRead(id, lastSeq);
-    row.classList.remove("cl-unread");
-    var b0 = row.querySelector(".cl-unread-dot");
-    if (b0) b0.remove();
-    return;
-  }
-  var unread = typeof lastSeq === "number" && lastSeq > readSeq;
-  row.classList.toggle("cl-unread", unread);
+
+  var d = unreadDecision(readSeq, lastSeq, isActive, isCurrent);
+
+  // 决策要求推进已读(仅 isCurrent 分支)才写 localStorage。
+  if (d.markReadTo !== null && d.markReadTo !== undefined) markRead(id, d.markReadTo);
+
+  row.classList.toggle("cl-unread", d.unread);
   var badge = row.querySelector(".cl-unread-dot");
-  if (unread && !badge) {
+  if (d.unread && !badge) {
     badge = document.createElement("span");
     badge.className = "cl-unread-dot";
     // 飞书风格：未读红点放头像右上角，绝对定位不占 grid 格子。
     row.appendChild(badge);
-  } else if (!unread && badge) {
+  } else if (!d.unread && badge) {
     badge.remove();
   }
 }
