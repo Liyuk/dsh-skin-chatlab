@@ -47,14 +47,40 @@ scripts/
 
 ## 开发流程
 
+### 一次性准备（装 dsh-hot-reload）
+
+热重载依赖 dsh 里的两个机制：
+
+- **client 端（皮肤 CSS/DOM）**：dsh 内置的 `dsh-client-hmr` 会 stat-poll 各包的
+  `lib/client.js`，重打包后自动热重载浏览器，无需重启 dsh、无需刷页面。
+- **host 端（`lib/index.js` 的预览/未读 RPC）**：dsh 内置 HMR 会刻意忽略 node_modules，
+  所以用社区插件 `dsh-hot-reload` 补上——它监听 profile 的 `pnpm-lock.yaml`，插件版本
+  一变就把运行中的 host fiber 就地换掉（失败自动回滚旧版）。
+
+装一次，之后开发就不用再动了：
+
+```sh
+dsh plugin --profile web add dsh-hot-reload@0.2.1
+# 重启一次 dsh web 让 bundle patch 生效（仅此一次）
+```
+
+### 日常开发
+
 ```sh
 npm install
-# 改 packages/ 下各包的 src/
-npm run build        # 重新打包各包 lib/client.js
+# 改皮肤：编辑 packages/*/src/ → 保存即热重载
+npm run dev          # watch 模式：自动重打包 lib/client.js，client-hmr 热重载皮肤
+# 改了 host 侧（lib/index.js 的 RPC）→ 手动触发一次 host 热重载
+npm run reload:host  # bump 版本 + touch lockfile，dsh-hot-reload 就地换 host fiber
 npm test             # 跑单测
 ```
 
-**重要**：`lib/client.js` 是构建产物，**不要手改**。改 `packages/*/src/` 后必须 `npm run build`。
+**重要**：`lib/client.js` 是构建产物，**不要手改**。改 `packages/*/src/` 后用
+`npm run dev`（watch）或 `npm run build`（一次性）重新打包。
+
+**边界**：`dsh-hot-reload` 只使入口模块（`lib/index.js`）失效，不会递归失效它 import
+的兄弟模块——所以改 `lib/projection.js`（被 index.js import）得重启一次 dsh。这种情况
+很少，先记着即可。
 
 ## 加一套新皮肤
 

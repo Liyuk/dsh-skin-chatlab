@@ -49,6 +49,7 @@
   var KEY_SKIN = "dsh-skin-chatlab.skin";
   var KEY_THEME = "dsh-skin-chatlab.theme";
   var KEY_READ = "dsh-skin-chatlab.read";
+  var KEY_AVATAR_MAP = "dsh-skin-chatlab.avatar";
   function readSkin() {
     try {
       var v = localStorage.getItem(KEY_SKIN);
@@ -282,9 +283,98 @@
     }
     return h % 360;
   }
+  function resolveSidebarSeed(id, title, current, currentDisplay) {
+    return id || (current && currentDisplay && currentDisplay === title ? current : null) || title || "dsh";
+  }
+  function assignRowIds(rows, current) {
+    var claimed = false;
+    var out = [];
+    var i, row;
+    for (i = 0; i < rows.length; i++) {
+      row = rows[i];
+      var rid = row._id || null;
+      if (rid && current && rid === current) claimed = true;
+      out.push({ _id: rid, title: row.title || "", selected: !!row.selected });
+    }
+    if (current && !claimed) {
+      for (i = 0; i < out.length; i++) {
+        if (!out[i]._id && out[i].selected) {
+          out[i]._id = current;
+          claimed = true;
+          break;
+        }
+      }
+    }
+    return out;
+  }
+  function clipPreview(text) {
+    var s = norm(text);
+    if (s.length > 90) s = s.slice(0, 90) + "\u2026";
+    return s;
+  }
+  function unreadDecision(readSeq, lastSeq, isActive, isCurrent) {
+    if (isActive) return { unread: false, markReadTo: null };
+    if (isCurrent) {
+      var to = typeof lastSeq === "number" && lastSeq > readSeq ? lastSeq : null;
+      return { unread: false, markReadTo: to };
+    }
+    var unread = typeof lastSeq === "number" && lastSeq > readSeq;
+    return { unread, markReadTo: null };
+  }
+  function buildActiveSet(snapFull, runningOf) {
+    var out = {};
+    if (!snapFull || !snapFull.byId) return out;
+    var direct = {};
+    var ids = snapFull.ids || [];
+    for (var i = 0; i < ids.length; i++) {
+      var id = ids[i];
+      var s = snapFull.byId[id];
+      var r = runningOf ? runningOf(id) : !!(s && s.running);
+      if (s && (r || s.pendingInteraction)) direct[id] = true;
+    }
+    for (var id2 in direct) {
+      out[id2] = true;
+      var p = snapFull.byId[id2];
+      var anc = p ? p.parentId : null;
+      var guard = 0;
+      while (anc && !out[anc] && guard++ < 1e3) {
+        out[anc] = true;
+        var a = snapFull.byId[anc];
+        anc = a ? a.parentId : null;
+      }
+    }
+    return out;
+  }
+  function buildRunningSet(snapFull, runningOf) {
+    var out = {};
+    if (!snapFull || !snapFull.byId) return out;
+    var direct = {};
+    var ids = snapFull.ids || [];
+    for (var i = 0; i < ids.length; i++) {
+      var id = ids[i];
+      var s = snapFull.byId[id];
+      var r = runningOf ? runningOf(id) : !!(s && s.running);
+      if (s && r) direct[id] = true;
+    }
+    for (var id2 in direct) {
+      out[id2] = true;
+      var p = snapFull.byId[id2];
+      var anc = p ? p.parentId : null;
+      var guard = 0;
+      while (anc && !out[anc] && guard++ < 1e3) {
+        out[anc] = true;
+        var a = snapFull.byId[anc];
+        anc = a ? a.parentId : null;
+      }
+    }
+    return out;
+  }
 
   // packages/core/src/avatar.js
-  var AVATAR_BASE = "https://api.dicebear.com/9.x/avataaars/svg?radius=50&size=64&seed=";
+  var AVATAR_BASE = "https://api.dicebear.com/9.x/avataaars/svg?radius=50&size=32&seed=";
+  function avatarUrl(seed) {
+    return AVATAR_BASE + encodeURIComponent(norm(seed) || "dsh");
+  }
   function makeAvatar(seed, extraClass) {
     var s = norm(seed) || "dsh";
     var img = document.createElement("img");
@@ -292,10 +382,14 @@
     img.setAttribute("data-seed", s);
     img.alt = "";
     img.loading = "lazy";
+    img.setAttribute("fetchpriority", "low");
+    img.decoding = "async";
+    img.style.backgroundColor = "hsl(" + hashHue(s) + ", 42%, 88%)";
     img.draggable = false;
-    img.src = AVATAR_BASE + encodeURIComponent(s);
+    img.src = avatarUrl(s);
     img.onerror = function() {
-      img.onerror = null;
+      if (img._failed) return;
+      img._failed = true;
       var span = document.createElement("span");
       span.className = img.className + " cl-avatar-initial";
       span.setAttribute("data-seed", s);
@@ -345,49 +439,84 @@
     return t ? t.textContent : row.textContent;
   }
   function rowId(row, idByTitle) {
-    var id = row.getAttribute("data-session-id") || row.getAttribute("data-id") || row.getAttribute("data-key");
+    var id = row.getAttribute("data-cl-session-id") || row.getAttribute("data-session-id") || row.getAttribute("data-id") || row.getAttribute("data-key");
     if (id) return id;
     return idByTitle[norm(titleOf(row))];
   }
   function addPreview(row, text) {
-    if (!text) return;
+    var clipped = clipPreview(text);
+    if (!clipped) return;
     var existing = row.querySelector(".cl-preview");
     if (existing) {
-      if (existing.textContent !== text) existing.textContent = text;
+      if (existing.textContent !== clipped) existing.textContent = clipped;
       return;
     }
     var preview = document.createElement("div");
     preview.className = "cl-preview";
-    preview.textContent = text;
+    preview.textContent = clipped;
     row.appendChild(preview);
   }
-  function applyUnread(row, id, lastSeq, current) {
+  function applyUnread(row, id, lastSeq, current, active) {
     var m = readSeqs();
-    if (!(id in m)) {
-      if (typeof lastSeq === "number" && lastSeq > 0) markRead(id, lastSeq);
-      row.classList.remove("cl-unread");
-      var d0 = row.querySelector(".cl-unread-dot");
-      if (d0) d0.remove();
-      return;
-    }
-    var readSeq = m[id];
+    var readSeq = id in m ? m[id] : 0;
+    var isActive = active && active[String(id)];
     var isCurrent = id === current;
-    if (isCurrent) {
-      if (lastSeq > readSeq) markRead(id, lastSeq);
-      row.classList.remove("cl-unread");
-      var b0 = row.querySelector(".cl-unread-dot");
-      if (b0) b0.remove();
-      return;
-    }
-    var unread = typeof lastSeq === "number" && lastSeq > readSeq;
-    row.classList.toggle("cl-unread", unread);
+    var d = unreadDecision(readSeq, lastSeq, isActive, isCurrent);
+    if (d.markReadTo !== null && d.markReadTo !== void 0) markRead(id, d.markReadTo);
+    row.classList.toggle("cl-unread", d.unread);
     var badge = row.querySelector(".cl-unread-dot");
-    if (unread && !badge) {
+    if (d.unread && !badge) {
       badge = document.createElement("span");
       badge.className = "cl-unread-dot";
       row.appendChild(badge);
-    } else if (!unread && badge) {
+    } else if (!d.unread && badge) {
       badge.remove();
+    }
+  }
+
+  // packages/core/src/avatarStore.js
+  var MAX_ENTRIES = 200;
+  function readAvatarMap() {
+    try {
+      var raw = localStorage.getItem(KEY_AVATAR_MAP);
+      if (!raw) return {};
+      var v = JSON.parse(raw);
+      return v && typeof v === "object" && !Array.isArray(v) ? v : {};
+    } catch (e) {
+      return {};
+    }
+  }
+  function avatarUrlForId(id) {
+    if (!id) return null;
+    var map = readAvatarMap();
+    var e = map[id];
+    return e && e.url ? e.url : null;
+  }
+  function rememberAvatar(id, seed, url) {
+    if (!id) return null;
+    var finalSeed = seed || id;
+    var finalUrl = url || "https://api.dicebear.com/9.x/avataaars/svg?radius=50&size=32&seed=" + encodeURIComponent(finalSeed);
+    var map = readAvatarMap();
+    map[id] = { seed: finalSeed, url: finalUrl, at: Date.now() };
+    var keys = Object.keys(map);
+    if (keys.length > MAX_ENTRIES) {
+      keys.sort(function(a, b) {
+        return (map[a] && map[a].at || 0) - (map[b] && map[b].at || 0);
+      });
+      var drop = keys.length - MAX_ENTRIES;
+      for (var i = 0; i < drop; i++) delete map[keys[i]];
+    }
+    try {
+      localStorage.setItem(KEY_AVATAR_MAP, JSON.stringify(map));
+    } catch (e) {
+    }
+    return finalUrl;
+  }
+  function exposeAvatarMap() {
+    try {
+      var map = readAvatarMap();
+      window.__chatlabAvatarMap = map;
+    } catch (e) {
     }
   }
 
@@ -412,16 +541,63 @@
     badge.textContent = label;
     brand.appendChild(badge);
   }
-  function decorateSidebar(idByTitle) {
+  function decorateSidebar(snap, idByTitle, active) {
+    var current = snap && snap.current;
+    var currentDisplay = current ? (snap.byId && snap.byId[current] || {}).displayTitle : null;
     var rows = document.querySelectorAll('[class*="sessionRow"]');
-    for (var i = 0; i < rows.length; i++) {
+    var descs = [];
+    var i;
+    for (i = 0; i < rows.length; i++) {
       var row = rows[i];
-      if (row.querySelector(".cl-avatar")) continue;
-      var id = rowId(row, idByTitle);
-      var seed = id || norm(titleOf(row)) || "dsh";
-      var av = makeAvatar(seed);
-      row.appendChild(av);
+      descs.push({
+        _id: rowId(row, idByTitle),
+        title: norm(titleOf(row)),
+        selected: current && isCurrentRow(row, current, idByTitle)
+      });
     }
+    var assigned = assignRowIds(descs, current);
+    for (i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var info = assigned[i];
+      var id = info._id;
+      var av = r.querySelector(".cl-avatar");
+      if (id) r.setAttribute("data-cl-session-id", id);
+      var seed = id ? id : resolveSidebarSeed(null, info.title, current, currentDisplay);
+      var src = id ? rememberAvatar(id, id, null) : avatarUrl(seed);
+      if (av) {
+        if (av.getAttribute("data-seed") !== seed) {
+          av.setAttribute("data-seed", seed);
+          av.src = src;
+        }
+      } else {
+        var fresh = makeAvatar(seed);
+        fresh.src = src;
+        r.appendChild(fresh);
+      }
+      applyAvatarStatus(r, active[String(id)], snap, id);
+    }
+    exposeAvatarMap();
+  }
+  function applyAvatarStatus(row, running, snap, id) {
+    var dot = row.querySelector(".cl-running-dot");
+    if (id && snap && snap.byId) {
+      var rec = window.__chatlabDebug = window.__chatlabDebug || {};
+      var s = snap.byId[id];
+      rec[id] = { running: !!(s && s.running), pending: s && s.pendingInteraction || null, dot: running };
+    }
+    if (running && !dot) {
+      dot = document.createElement("span");
+      dot.className = "cl-running-dot";
+      row.appendChild(dot);
+    } else if (!running && dot) {
+      dot.remove();
+    }
+  }
+  function isCurrentRow(row, current, idByTitle) {
+    var stored = row.getAttribute("data-cl-session-id");
+    if (stored) return stored === current;
+    if (idByTitle[norm(titleOf(row))] === current) return true;
+    return /(^|[\s_])selected([\s_]|$)/.test(row.className || "");
   }
   function decorateProjects() {
     var rows = document.querySelectorAll('[class*="projectRow"]');
@@ -447,16 +623,24 @@
     var current = snap && snap.current;
     var summary = current ? snap.byId && snap.byId[current] : null;
     var seed = current || summary && summary.displayTitle || "dsh";
+    var src;
+    if (current) {
+      src = avatarUrlForId(current) || rememberAvatar(current, current, null);
+    } else {
+      src = avatarUrl(seed);
+    }
     var existing = cluster.querySelector(".cl-avatar");
     if (existing) {
       if (existing.getAttribute("data-seed") === seed) return;
       existing.setAttribute("data-seed", seed);
-      existing.src = "https://api.dicebear.com/9.x/avataaars/svg?radius=50&size=64&seed=" + encodeURIComponent(seed);
+      existing.src = src;
       return;
     }
-    cluster.appendChild(makeAvatar(seed, "cl-header-avatar"));
+    var fresh = makeAvatar(seed, "cl-header-avatar");
+    fresh.src = src;
+    cluster.appendChild(fresh);
   }
-  function applyPreviews(ctx, snap, idByTitle) {
+  function applyPreviews(ctx, snap, idByTitle, active) {
     var connection = ctx.connection;
     if (!connection || !connection.rpc || typeof connection.rpc.call !== "function") return;
     var rows = document.querySelectorAll('[class*="sessionRow"]');
@@ -476,7 +660,7 @@
       for (var k = 0; k < need.length; k++) {
         var info = map[need[k].id] || { text: "", lastSeq: -1 };
         if (info.text) addPreview(need[k].row, info.text);
-        applyUnread(need[k].row, need[k].id, info.lastSeq, current);
+        applyUnread(need[k].row, need[k].id, info.lastSeq, current, active);
       }
     }).catch(function() {
     });
@@ -501,12 +685,23 @@
         if (s && s.displayTitle) idByTitle[norm(s.displayTitle)] = s.id;
       }
     }
+    var runningOf = null;
+    if (ctx.sessions && typeof ctx.sessions.get === "function") {
+      runningOf = function(id) {
+        var sess = ctx.sessions.get(id);
+        if (sess) return !!sess.running;
+        var s2 = snap && snap.byId ? snap.byId[id] : null;
+        return !!(s2 && s2.running);
+      };
+    }
+    var active = buildActiveSet(snap, runningOf);
+    var running = buildRunningSet(snap, runningOf);
     decorateBrand();
-    decorateSidebar(idByTitle);
+    decorateSidebar(snap, idByTitle, active);
     decorateProjects();
     decorateHeader(ctx, snap);
     decorateTurnStatus();
-    applyPreviews(ctx, snap, idByTitle);
+    applyPreviews(ctx, snap, idByTitle, running);
   }
 
   // packages/core/src/index.js
@@ -532,7 +727,7 @@
           return function() {
             var s = document.getElementById(STYLE_ID);
             if (s && s.parentNode) s.parentNode.removeChild(s);
-            var nodes = document.querySelectorAll(".cl-avatar, .cl-preview, .cl-unread-dot, .cl-project-icon, .cl-brand-skin, .cl-typing, .cl-turn-typing");
+            var nodes = document.querySelectorAll(".cl-avatar, .cl-preview, .cl-unread-dot, .cl-running-dot, .cl-project-icon, .cl-brand-skin, .cl-typing, .cl-turn-typing");
             for (var i = 0; i < nodes.length; i++) {
               var n = nodes[i];
               if (n.parentNode) n.parentNode.removeChild(n);

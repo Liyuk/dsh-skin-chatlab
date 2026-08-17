@@ -1,6 +1,6 @@
 {
   "name": "@liyuk/dsh-skin-feishu",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "飞书皮肤包：DeepSeek Harness (DSH) 的飞书/Lark 风格聊天皮肤。依赖 @liyuk/dsh-skin-chatlab-core 基座。",
   "license": "MIT",
   "type": "module",

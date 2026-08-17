@@ -54,19 +54,18 @@ async function handler(ctx, endpoint, payload, cache) {
     const out = {};
     await Promise.all(ids.map(async function (raw) {
       const id = String(raw);
-      // 命中缓存直接返回(冷/热会话都走缓存，session/event 已保证失效)。
-      if (cache.has(id)) { out[id] = cache.get(id); return; }
+      // live 会话：每次读内存 events(便宜)，不缓存 —— lastSeq 永远最新。
+      // 不再依赖 session/event 失效(session 未挂到 container 时该事件不 emit，缓存会卡旧值，
+      // 导致有新消息却 lastSeq 不涨、红点不亮)。
       const live = ctx.sessions.get(id);
-      // cold session：读磁盘日志(慢)。
-      if (!live) {
-        const events = await readEvents(ctx, id);
-        const info = lastActivity(events);
-        cache.set(id, info);
-        out[id] = info;
+      if (live) {
+        out[id] = lastActivity(live.events);
         return;
       }
-      // live session：读内存 events(快)，缓存后靠 session/event 失效。
-      const info = lastActivity(live.events);
+      // cold 会话：读磁盘(慢)，但日志不可变，缓存永久有效，安全。
+      if (cache.has(id)) { out[id] = cache.get(id); return; }
+      const events = await readEvents(ctx, id);
+      const info = lastActivity(events);
       cache.set(id, info);
       out[id] = info;
     }));

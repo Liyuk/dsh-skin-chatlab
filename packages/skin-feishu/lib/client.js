@@ -63,6 +63,12 @@
     'html[data-chatlab-skin="feishu"] .cl-avatar { width: 32px; height: 32px; border-radius: 50%; grid-column: 1; grid-row: 1 / span 2; justify-self: start; align-self: center; }',
     // 会话行里那个 16px 空状态槽(slot)在飞书风格里不需要，display:none 彻底移除。
     'html[data-chatlab-skin="feishu"] [class*="sessionRow"] [class*="slot"] { display: none !important; }',
+    // 头像右下角"进行中"呼吸圆点：会话正在跑任务时出现的小蓝点。视觉上仍与未读红点同一
+    // 套语言(同款 2px 背景色细光圈描边、无光晕无粗 border)，但"进行中"是需要主动留意
+    // 的状态 → 尺寸比红点(8px)略大到 10px，且呼吸只轻微缩放、不开合透明度(保持常亮)，
+    // 避免像 8px 素点那样淡到看不见。颜色用品牌蓝，呼吸动效是唯一"进行中"区分。
+    'html[data-chatlab-skin="feishu"] .cl-running-dot { position: absolute; bottom: 5px; left: 38px; width: 10px; height: 10px; border-radius: 50%; background: #1456F0; box-shadow: 0 0 0 2px var(--dsw-alias-bg-base); z-index: 1; animation: cl-running-breathe 1.6s ease-in-out infinite; }',
+    "@keyframes cl-running-breathe { 0%, 100% { transform: scale(.86); } 50% { transform: scale(1.08); } }",
     // 顶部头像：order:-1 排到面包屑前，margin-left 撑开与面包屑间距(用户调试值)。
     'html[data-chatlab-skin="feishu"] .cl-header-avatar { width: 28px; height: 28px; border-radius: 50%; margin: 0 0 0 8px; flex: none; align-self: center; order: -1; }',
     // 项目组彩色方块图标(Meego 风)。原文件夹 SVG 用 CSS 隐藏(不删节点)，只显示叠加的彩色方块。
