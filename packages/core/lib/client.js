@@ -481,22 +481,16 @@
     }).catch(function() {
     });
   }
-  function decorateTyping(ctx, snap) {
-    var dock = document.querySelector('[data-slot="conversation.input.dock"]');
-    var current = snap && snap.current;
-    var summary = current ? snap.byId && snap.byId[current] : null;
-    var running = !!(summary && summary.running);
-    var existing = document.querySelector(".cl-typing");
-    if (!running) {
-      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
-      return;
-    }
-    if (existing) return;
-    var el = document.createElement("span");
-    el.className = "cl-typing";
-    el.innerHTML = '<span>\u6B63\u5728\u8F93\u5165</span><span class="cl-typing-dot"></span><span class="cl-typing-dot"></span><span class="cl-typing-dot"></span>';
-    if (dock) dock.appendChild(el);
-    else document.body.appendChild(el);
+  function decorateTurnStatus() {
+    var status = document.querySelector('[class*="turnStatus"]:not([class*="turnStatusClock"])');
+    if (!status) return;
+    if (status.querySelector(".cl-turn-typing")) return;
+    var wrap = document.createElement("span");
+    wrap.className = "cl-turn-typing";
+    wrap.innerHTML = '<span>\u6B63\u5728\u8F93\u5165</span><span class="cl-typing-dot"></span><span class="cl-typing-dot"></span><span class="cl-typing-dot"></span>';
+    var clock = status.querySelector('[class*="turnStatusClock"]');
+    if (clock) status.insertBefore(wrap, clock);
+    else status.appendChild(wrap);
   }
   function refresh(ctx) {
     var snap = listSnapshot(ctx);
@@ -511,7 +505,7 @@
     decorateSidebar(idByTitle);
     decorateProjects();
     decorateHeader(ctx, snap);
-    decorateTyping(ctx, snap);
+    decorateTurnStatus();
     applyPreviews(ctx, snap, idByTitle);
   }
 
@@ -538,7 +532,7 @@
           return function() {
             var s = document.getElementById(STYLE_ID);
             if (s && s.parentNode) s.parentNode.removeChild(s);
-            var nodes = document.querySelectorAll(".cl-avatar, .cl-preview, .cl-unread-dot, .cl-project-icon, .cl-brand-skin, .cl-typing");
+            var nodes = document.querySelectorAll(".cl-avatar, .cl-preview, .cl-unread-dot, .cl-project-icon, .cl-brand-skin, .cl-typing, .cl-turn-typing");
             for (var i = 0; i < nodes.length; i++) {
               var n = nodes[i];
               if (n.parentNode) n.parentNode.removeChild(n);

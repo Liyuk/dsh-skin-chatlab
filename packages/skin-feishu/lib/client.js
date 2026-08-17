@@ -73,9 +73,18 @@
     // 否则会横跨整个输入区显得很怪。
     'html[data-chatlab-skin="feishu"] .cl-typing { display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin: 0 0 4px 4px; padding: 2px 8px; border-radius: 6px; background: var(--dsw-alias-bg-layer-2); font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-secondary); }',
     'html[data-chatlab-skin="feishu"] .cl-typing-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--dsw-alias-label-tertiary); animation: cl-typing-bounce 1.2s infinite; }',
-    'html[data-chatlab-skin="feishu"] .cl-typing-dot:nth-child(2) { animation-delay: .2s; }',
-    'html[data-chatlab-skin="feishu"] .cl-typing-dot:nth-child(3) { animation-delay: .4s; }',
-    "@keyframes cl-typing-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-3px); opacity: 1; } }"
+    'html[data-chatlab-skin="feishu"] .cl-typing-dot:nth-child(3) { animation-delay: .2s; }',
+    'html[data-chatlab-skin="feishu"] .cl-typing-dot:nth-child(4) { animation-delay: .4s; }',
+    "@keyframes cl-typing-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-3px); opacity: 1; } }",
+    // ===================== 原生回合状态("Deep diving...")→ 飞书"正在输入…" =====================
+    // 原文字用透明色+渐变裁剪(shimmer)渲染，CSS 无法直接改文本节点：
+    // font-size:0 隐藏原文本 + background/animation:none 去掉流光。
+    // 新内容("正在输入"+三点错峰跳动)由 core 的 decorateTurnStatus 注入到时钟之前，
+    // 圆点复用 .cl-typing-dot 的错峰动效。
+    'html[data-chatlab-skin="feishu"] [class*="turnStatus"]:not([class*="turnStatusClock"]) { font-size: 0; background: none; animation: none; -webkit-text-fill-color: var(--dsw-alias-label-tertiary); }',
+    'html[data-chatlab-skin="feishu"] .cl-turn-typing { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 400; line-height: 18px; color: var(--dsw-alias-label-secondary); letter-spacing: .01em; white-space: nowrap; }',
+    'html[data-chatlab-skin="feishu"] .cl-turn-typing .cl-typing-dot { width: 5px; height: 5px; background: var(--dsw-alias-label-secondary); }',
+    'html[data-chatlab-skin="feishu"] [class*="turnStatusClock"] { font-size: 11px; color: var(--dsw-alias-label-tertiary); -webkit-text-fill-color: var(--dsw-alias-label-tertiary); margin-left: 6px; }'
   ].join("\n");
 
   // packages/skin-feishu/src/index.js

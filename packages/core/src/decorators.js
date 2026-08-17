@@ -104,30 +104,23 @@ export function applyPreviews(ctx, snap, idByTitle) {
   }).catch(function () {});
 }
 
-export function decorateTyping(ctx, snap) {
-  // 找输入框上方的 dock 区域(conversation.input.dock slot 的挂载点)。
-  var dock = document.querySelector('[data-slot="conversation.input.dock"]');
-  // 判断当前会话是否 running。
-  var current = snap && snap.current;
-  var summary = current ? (snap.byId && snap.byId[current]) : null;
-  var running = !!(summary && summary.running);
-
-  var existing = document.querySelector(".cl-typing");
-  if (!running) {
-    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
-    return;
-  }
-  if (existing) return; // 已在显示
-  // 注入"正在输入…"+三点跳动。挂到 dock 里(没有 dock 则退回 body 顶部不动)。
-  var el = document.createElement("span");
-  el.className = "cl-typing";
-  el.innerHTML =
+export function decorateTurnStatus() {
+  // 原生回合状态("Deep diving...")→ 飞书"正在输入"+三点错峰跳动。
+  // 注入到时钟(turnStatusClock)之前，顺序为：正在输入 ● ● ● 31秒。
+  // 圆点复用 .cl-typing-dot 的错峰动效(皮肤 CSS 已定义)。1.5s 兜底轮询会补上晚出现的状态。
+  var status = document.querySelector('[class*="turnStatus"]:not([class*="turnStatusClock"])');
+  if (!status) return;
+  if (status.querySelector(".cl-turn-typing")) return; // 已注入
+  var wrap = document.createElement("span");
+  wrap.className = "cl-turn-typing";
+  wrap.innerHTML =
     '<span>正在输入</span>' +
     '<span class="cl-typing-dot"></span>' +
     '<span class="cl-typing-dot"></span>' +
     '<span class="cl-typing-dot"></span>';
-  if (dock) dock.appendChild(el);
-  else document.body.appendChild(el);
+  var clock = status.querySelector('[class*="turnStatusClock"]');
+  if (clock) status.insertBefore(wrap, clock);
+  else status.appendChild(wrap);
 }
 
 export function refresh(ctx) {
@@ -143,6 +136,6 @@ export function refresh(ctx) {
   decorateSidebar(idByTitle);
   decorateProjects();
   decorateHeader(ctx, snap);
-  decorateTyping(ctx, snap);
+  decorateTurnStatus();
   applyPreviews(ctx, snap, idByTitle);
 }
