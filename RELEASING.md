@@ -35,7 +35,7 @@ git pull origin main
 
 # 手动 bump 各包版本号（monorepo 无单一 package.json 版本）
 # 需要更新哪个包就改哪个包的 packages/<name>/package.json 的 version，
-# 并打 tag 如 v2.0.0 / v1.0.1
+# 并打 tag 如 v2.0.2 / v1.0.2
 git add -A && git commit -m "chore: release vX.Y.Z"
 
 # 推分支 + tag（tag 触发 workflow 自动跑 node scripts/publish.mjs）
@@ -60,9 +60,9 @@ node scripts/publish.mjs --dry-run  # 只检查不发布
 
 | 包 | 当前 |
 |---|---|
-| `@liyuk/dsh-skin-chatlab-core` | 1.0.0 |
-| `@liyuk/dsh-skin-feishu` | 1.0.0 |
-| `@liyuk/dsh-skin-chatlab` | 2.0.0 |
+| `@liyuk/dsh-skin-chatlab-core` | 1.0.2 |
+| `@liyuk/dsh-skin-feishu` | 1.0.2 |
+| `@liyuk/dsh-skin-chatlab` | 2.0.2 |
 
 ## 一次性配置（仓库 owner）
 

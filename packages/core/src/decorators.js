@@ -1,14 +1,29 @@
 // decorators：注入品牌 logo、头像、项目方块、预览、未读；以及刷新入口。
 // 关键约束：DSH 是 React 应用，这里只 appendChild 自己的节点、绝不动 React 的节点。
-import { norm, hashHue, resolveSidebarSeed, buildActiveSet, buildRunningSet, assignRowIds } from "./utils.js";
-import { makeAvatar, avatarUrl } from "./avatar.js";
-import { listSnapshot } from "./session.js";
-import { titleOf, rowId, addPreview, applyUnread } from "./dom.js";
+import { norm, hashHue, resolveSidebarSeed, buildActiveSet, buildRunningSet, assignRowIds, buildIdByTitle } from "./utils.js";
+import { avatarUrl, updateAvatar } from "./avatar.js";
+import { listSnapshot, readSeqs, writeSeqs } from "./session.js";
+import { titleOf, rowId, addPreview, applyUnread, clearPreview, clearUnread, isSelectedRow } from "./dom.js";
 import { skinRegistry } from "./registry.js";
 import { readSkin } from "./prefs.js";
-import { avatarUrlForId, rememberAvatar, exposeAvatarMap } from "./avatarStore.js";
+import { avatarUrlForId, rememberAvatar, flushAvatarMap, exposeAvatarMap } from "./avatarStore.js";
 
 // 品牌：保留原 DeepSeek 鲸鱼 icon，只在旁边追加当前皮肤名徽章(跟随皮肤走)。
+function appendBrandMark(container, svg) {
+  if (!svg) return;
+  var mark = document.createElement("span");
+  mark.className = "cl-brand-mark";
+  mark.setAttribute("aria-hidden", "true");
+  var image = document.createElement("img");
+  image.className = "cl-brand-mark-image";
+  image.setAttribute("alt", "");
+  image.setAttribute("aria-hidden", "true");
+  image.setAttribute("draggable", "false");
+  image.setAttribute("src", "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg));
+  mark.appendChild(image);
+  container.appendChild(mark);
+}
+
 export function decorateBrand() {
   var brand = document.querySelector('[class*="brand"]');
   if (!brand) return;
@@ -22,12 +37,31 @@ export function decorateBrand() {
     return;
   }
   if (existing) {
-    if (existing.textContent !== label) existing.textContent = label;
+    existing.textContent = "";
+    appendBrandMark(existing, def.brand && typeof def.brand.svg === "string" ? def.brand.svg : "");
+    var existingLabel = document.createElement("span");
+    existingLabel.className = "cl-brand-label";
+    existingLabel.textContent = label;
+    existing.appendChild(existingLabel);
+    existing.setAttribute("aria-label", label);
+    existing.setAttribute("title", label);
     return;
   }
+  // 采用皮肤自带的轻量 logo + 字标，而不是通用文字胶囊；SVG 来自受信任的皮肤定义，
+  // 不请求图片资源，也不会覆盖 React 管理的原始鲸鱼图标。
   var badge = document.createElement("span");
   badge.className = "cl-brand-skin";
-  badge.textContent = label;
+  badge.setAttribute("aria-label", label);
+  badge.setAttribute("title", label);
+
+  if (def.brand && typeof def.brand.svg === "string" && def.brand.svg) {
+    appendBrandMark(badge, def.brand.svg);
+  }
+
+  var wordmark = document.createElement("span");
+  wordmark.className = "cl-brand-label";
+  wordmark.textContent = label;
+  badge.appendChild(wordmark);
   brand.appendChild(badge);
 }
 
@@ -50,9 +84,9 @@ export function decorateSidebar(snap, idByTitle, active) {
   for (i = 0; i < rows.length; i++) {
     var row = rows[i];
     descs.push({
-      _id: rowId(row, idByTitle),
+      _id: rowId(row, idByTitle, current),
       title: norm(titleOf(row)),
-      selected: current && isCurrentRow(row, current, idByTitle)
+      selected: isSelectedRow(row)
     });
   }
   var assigned = assignRowIds(descs, current);
@@ -60,24 +94,27 @@ export function decorateSidebar(snap, idByTitle, active) {
     var r = rows[i];
     var info = assigned[i];
     var id = info._id;
+    var previousId = r.getAttribute("data-cl-session-id");
+    if (id && previousId !== id) clearRowIdentityState(r);
+    if (id) {
+      r.setAttribute("data-cl-session-id", id);
+      r.setAttribute("data-cl-session-title", info.title);
+    } else {
+      // 没有可靠身份时清掉旧 binding，避免 React 复用行泄漏上一会话状态。
+      clearRowIdentityState(r);
+      r.removeAttribute("data-cl-session-id");
+      r.removeAttribute("data-cl-session-title");
+    }
     var av = r.querySelector(".cl-avatar");
-    if (id) r.setAttribute("data-cl-session-id", id);
     // 统一 seed：有 id 一律用 id(与 header 同源)；真正 parse 不出的极端盲点
     // 才回退 resolveSidebarSeed 的 title 兜底。seed/id 写入持久化映射表，保证
     // 任何位置按同一 id 拿到同一 URL。
     var seed = id ? id : resolveSidebarSeed(null, info.title, current, currentDisplay);
-    var src = id ? rememberAvatar(id, id, null) : avatarUrl(seed);
-    if (av) {
-      // 已有头像而 seed 变了才更新(标题重命名等场景)；种子一致则不动。
-      if (av.getAttribute("data-seed") !== seed) {
-        av.setAttribute("data-seed", seed);
-        av.src = src;
-      }
-    } else {
-      var fresh = makeAvatar(seed);
-      fresh.src = src;
+    var src = id ? rememberAvatar(id, id, null, true) : avatarUrl(seed);
+    var nextAvatar = updateAvatar(av, seed, src);
+    if (!av) {
       // 只 append 到行尾，不 insertBefore 到 React 节点前(避免干扰 React reconcile)。
-      r.appendChild(fresh);
+      r.appendChild(nextAvatar);
     }
     // 每次 refresh 都重算进行中状态，让圆点随 running 出现/消失(低频轮询驱动)。
     applyAvatarStatus(r, active[String(id)], snap, id);
@@ -106,13 +143,11 @@ export function applyAvatarStatus(row, running, snap, id) {
   }
 }
 
-// 行是否为当前会话：优先用显式 data-cl-session-id，其次靠标题反查，
-// 最后看行是否带 React 的选中态类名([class*="selected"]，与当前会话等价)。
-function isCurrentRow(row, current, idByTitle) {
-  var stored = row.getAttribute("data-cl-session-id");
-  if (stored) return stored === current;
-  if (idByTitle[norm(titleOf(row))] === current) return true;
-  return /(^|[\s_])selected([\s_]|$)/.test(row.className || "");
+function clearRowIdentityState(row) {
+  clearPreview(row);
+  clearUnread(row);
+  var dot = row.querySelector(".cl-running-dot");
+  if (dot) dot.remove();
 }
 
 // 项目组图标：在原有文件夹 SVG 旁叠加彩色圆角方块 + 首字母。
@@ -122,16 +157,19 @@ export function decorateProjects() {
     var row = rows[i];
     var folderSlot = row.querySelector('[class*="folder"]');
     if (!folderSlot) continue;
-    if (folderSlot.querySelector(".cl-project-icon")) continue;
     var title = row.querySelector('[class*="projectText"] [class*="title"], [class*="projectText"]');
     var text = norm(title ? title.textContent : row.textContent);
     var initial = (text.charAt(0) || "?").toUpperCase();
     var hue = hashHue(text);
-    var block = document.createElement("span");
-    block.className = "cl-project-icon";
+    var block = folderSlot.querySelector(".cl-project-icon");
+    if (!block) {
+      block = document.createElement("span");
+      block.className = "cl-project-icon";
+      folderSlot.appendChild(block); // 只 append，不删原 SVG
+    }
+    // React 可复用项目行；每轮同步文字和颜色，避免保留上一项目的图标。
     block.textContent = initial;
     block.style.background = "hsl(" + hue + ", 70%, 55%)";
-    folderSlot.appendChild(block); // 只 append，不删原 SVG
   }
 }
 
@@ -150,45 +188,165 @@ export function decorateHeader(ctx, snap) {
     src = avatarUrl(seed);
   }
   var existing = cluster.querySelector(".cl-avatar");
-  if (existing) {
-    if (existing.getAttribute("data-seed") === seed) return;
-    // 更新已有头像(我自己 append 的节点，安全)
-    existing.setAttribute("data-seed", seed);
-    existing.src = src;
+  var nextAvatar = updateAvatar(existing, seed, src, "cl-header-avatar");
+  if (!existing) {
+    // append 到末尾，不 insertBefore 到 React 节点前(避免干扰 React 的节点顺序)
+    cluster.appendChild(nextAvatar);
+  }
+}
+
+var previewStates = new WeakMap();
+var PREVIEW_TIMEOUT_MS = 8000;
+
+function previewStateFor(ctx) {
+  var state = previewStates.get(ctx);
+  if (!state) {
+    state = { generation: 0, inFlight: false, queued: null, disposed: false, connection: null, timeout: null };
+    previewStates.set(ctx, state);
+  }
+  return state;
+}
+
+function rowStillMatchesPreview(ctx, item, latest, latestIdByTitle) {
+  if (item.row.isConnected === false) return false;
+  // 用最新 session snapshot 重建 title 映射；非选中行若被 React 复用为另一会话，
+  // 不能继续用请求发起时的映射确认身份。latest/id map 由一次 RPC 响应共享，
+  // 避免 N 行重复 getSnapshot + buildIdByTitle 的 O(N²) 开销。
+  latest = latest || listSnapshot(ctx);
+  if (!latest) return false;
+  latestIdByTitle = latestIdByTitle || buildIdByTitle(latest);
+  if (isSelectedRow(item.row) && latest.current !== item.current) return false;
+  // 请求开始后 React 可能复用同一 DOM 行；必须同时验证本轮写入的 id、标题绑定
+  // 和 React 标题节点身份，不能只拿旧快照再反查一次。
+  if (item.row.getAttribute("data-cl-session-id") !== item.id) return false;
+  if (item.row.getAttribute("data-cl-session-title") !== norm(titleOf(item.row))) return false;
+  if (item.row.querySelector('[class*="title"]') !== item.titleNode) return false;
+  return rowId(item.row, latestIdByTitle, latest.current) === item.id;
+}
+
+function finishPreviewRequest(ctx, state) {
+  state.inFlight = false;
+  var queued = state.queued;
+  state.queued = null;
+  if (queued && !state.disposed) startPreviewRequest(ctx, state, queued);
+}
+
+function startPreviewRequest(ctx, state, request) {
+  state.inFlight = true;
+  var settled = false;
+  var timeout = setTimeout(function () {
+    if (settled) return;
+    request.expired = true;
+    settled = true;
+    if (state.timeout === timeout) state.timeout = null;
+    // transport 卡住时释放 single-flight，让后续轮询可以恢复预览更新。
+    finishPreviewRequest(ctx, state);
+  }, PREVIEW_TIMEOUT_MS);
+  state.timeout = timeout;
+  function settle() {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timeout);
+    if (state.timeout === timeout) state.timeout = null;
+    finishPreviewRequest(ctx, state);
+  }
+  var promise;
+  try {
+    promise = request.connection.rpc.call("/dsh-skin-chatlab", "previews", { ids: request.ids });
+  } catch (e) {
+    // 临时 RPC 失败保留上一次已确认的预览/未读状态，后续轮询会重试。
+    settle();
     return;
   }
-  var fresh = makeAvatar(seed, "cl-header-avatar");
-  fresh.src = src;
-  // append 到末尾，不 insertBefore 到 React 节点前(避免干扰 React 的节点顺序)
-  cluster.appendChild(fresh);
+  Promise.resolve(promise).then(function (res) {
+    if (request.expired) return;
+    if (state.disposed || request.generation !== state.generation || state.connection !== request.connection) {
+      settle();
+      return;
+    }
+    try {
+      if (!res || !res.ok) return;
+      var map = res.value || {};
+      var latest = listSnapshot(ctx);
+      var latestIdByTitle = buildIdByTitle(latest);
+      var readMap = readSeqs();
+      var readChanged = false;
+      for (var i = 0; i < request.items.length; i++) {
+        var item = request.items[i];
+        if (!rowStillMatchesPreview(ctx, item, latest, latestIdByTitle)) continue;
+        if (!Object.prototype.hasOwnProperty.call(map, item.id)) continue;
+        var info = map[item.id];
+        if (info && info.unavailable) continue;
+        if (!info) continue;
+        if (info.text) addPreview(item.row, info.text);
+        else clearPreview(item.row);
+        if (applyUnread(item.row, item.id, info.lastSeq, request.current, request.active, readMap)) {
+          readChanged = true;
+        }
+      }
+      if (readChanged) writeSeqs(readMap);
+    } finally {
+      settle();
+    }
+  }).catch(function () {
+    // 临时 RPC/磁盘失败保留已确认状态；下一轮会重试。
+    settle();
+  });
+}
+
+export function disposePreviews(ctx) {
+  var state = previewStates.get(ctx);
+  if (!state) return;
+  state.disposed = true;
+  state.generation += 1;
+  state.queued = null;
+  state.inFlight = false;
+  if (state.timeout) clearTimeout(state.timeout);
+  state.timeout = null;
+  previewStates.delete(ctx);
 }
 
 export function applyPreviews(ctx, snap, idByTitle, active) {
+  var state = previewStateFor(ctx);
+  state.disposed = false;
   var connection = ctx.connection;
+  state.connection = connection;
   if (!connection || !connection.rpc || typeof connection.rpc.call !== "function") return;
-  var rows = document.querySelectorAll('[class*="sessionRow"]');
-  var need = [];
-  for (var i = 0; i < rows.length; i++) {
-    var id = rowId(rows[i], idByTitle);
-    if (id) need.push({ row: rows[i], id: id });
-  }
-  if (!need.length) return;
-  var ids = need.map(function (x) { return x.id; });
   var current = snap && snap.current;
-  connection.rpc.call("/dsh-skin-chatlab", "previews", { ids: ids }).then(function (res) {
-    if (!res || !res.ok) return;
-    var map = res.value || {};
-    for (var k = 0; k < need.length; k++) {
-      var info = map[need[k].id] || { text: "", lastSeq: -1 };
-      if (info.text) addPreview(need[k].row, info.text);
-      applyUnread(need[k].row, need[k].id, info.lastSeq, current, active);
+  var rows = document.querySelectorAll('[class*="sessionRow"]');
+  var items = [];
+  for (var i = 0; i < rows.length; i++) {
+    var id = rowId(rows[i], idByTitle, current);
+    if (id) {
+      items.push({
+        row: rows[i],
+        id: id,
+        idByTitle: idByTitle,
+        current: current,
+        titleNode: rows[i].querySelector('[class*="title"]')
+      });
     }
-  }).catch(function () {});
+  }
+  if (!items.length) return;
+  var request = {
+    generation: state.generation,
+    connection: connection,
+    ids: items.map(function (item) { return item.id; }),
+    items: items,
+    current: current,
+    active: active
+  };
+  // 慢的 cold-session 读取只能保留一个在途请求；刷新期间只保留最新快照，
+  // 避免 1.5 秒轮询把磁盘读取和乱序响应叠加起来。
+  if (state.inFlight) {
+    state.queued = request;
+    return;
+  }
+  startPreviewRequest(ctx, state, request);
 }
 
 export function decorateTurnStatus() {
   // 原生回合状态("Deep diving...")→ 飞书"正在输入"+三点错峰跳动。
-  // 注入到时钟(turnStatusClock)之前，顺序为：正在输入 ● ● ● 31秒。
   // 圆点复用 .cl-typing-dot 的错峰动效(皮肤 CSS 已定义)。1.5s 兜底轮询会补上晚出现的状态。
   var status = document.querySelector('[class*="turnStatus"]:not([class*="turnStatusClock"])');
   if (!status) return;
@@ -200,9 +358,8 @@ export function decorateTurnStatus() {
     '<span class="cl-typing-dot"></span>' +
     '<span class="cl-typing-dot"></span>' +
     '<span class="cl-typing-dot"></span>';
-  var clock = status.querySelector('[class*="turnStatusClock"]');
-  if (clock) status.insertBefore(wrap, clock);
-  else status.appendChild(wrap);
+  // 只 append 自己的节点；视觉顺序交给 skin CSS 的 flex/order，绝不移动 React 的时钟节点。
+  status.appendChild(wrap);
 }
 
 // 当前会话是否处于"正在思考/输出"状态(原生 turnStatus 元素存在)。
@@ -214,13 +371,7 @@ export function hasTurnStatus() {
 
 export function refresh(ctx) {
   var snap = listSnapshot(ctx);
-  var idByTitle = {};
-  if (snap && snap.byId) {
-    for (var i = 0; i < snap.ids.length; i++) {
-      var s = snap.byId[snap.ids[i]];
-      if (s && s.displayTitle) idByTitle[norm(s.displayTitle)] = s.id;
-    }
-  }
+  var idByTitle = buildIdByTitle(snap);
   // 活跃会话集(running/pendingInteraction/子代理)：decorateSidebar 用它亮蓝点。
   // 压红点则用 running 集(不含 pendingInteraction)——等批准/审阅/问答的会话
   // 是"等你处理"，不该被压红点，反而该亮红点提醒。
@@ -242,6 +393,8 @@ export function refresh(ctx) {
   decorateSidebar(snap, idByTitle, active);
   decorateProjects();
   decorateHeader(ctx, snap);
+  // 侧栏和顶栏会在本轮各自补齐头像映射；结束时一次性落盘，避免逐行同步写 storage。
+  flushAvatarMap();
   decorateTurnStatus();
   applyPreviews(ctx, snap, idByTitle, running);
 }

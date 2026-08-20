@@ -26,6 +26,12 @@ const HOST_PACKAGES = ["packages/core", "packages/skin-feishu"];
 const profileDir = process.env.DSH_WEB_PROFILE || join(homedir(), ".dsh", "profiles", "web");
 const lockfile = join(profileDir, "pnpm-lock.yaml");
 
+// 必须在改写任何版本/本地状态前确认目标 profile 存在，失败不留下半成品。
+if (!existsSync(lockfile)) {
+  console.error(`✗ 没找到 lockfile：${lockfile}\n   web profile 在这里吗？可用 DSH_WEB_PROFILE 覆盖。`);
+  process.exit(1);
+}
+
 // 单调递增的 dev 版本号，存在 .devrev（已 gitignore），避免污染正式版本号。
 const revFile = join(root, ".devrev");
 let rev = 0;
@@ -47,10 +53,6 @@ for (const dir of HOST_PACKAGES) {
 }
 writeFileSync(revFile, String(rev) + "\n");
 
-if (!existsSync(lockfile)) {
-  console.error(`✗ 没找到 lockfile：${lockfile}\n   web profile 在这里吗？可用 DSH_WEB_PROFILE 覆盖。`);
-  process.exit(1);
-}
 const now = new Date();
 utimesSync(lockfile, now, now);
 console.log(`✓ touched ${lockfile}`);

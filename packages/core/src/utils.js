@@ -51,6 +51,25 @@ export function assignRowIds(rows, current) {
   }
   return out;
 }
+export function buildIdByTitle(snap) {
+  var out = {};
+  var ambiguous = {};
+  if (!snap || !snap.byId || !Array.isArray(snap.ids)) return out;
+  for (var i = 0; i < snap.ids.length; i++) {
+    var id = snap.ids[i];
+    var s = snap.byId[id];
+    var title = norm(s && s.displayTitle);
+    if (!title) continue;
+    // 重复标题无法从 DOM 唯一反查 session，宁可不装饰也不能映射到错误会话。
+    if (out[title] && out[title] !== id) {
+      delete out[title];
+      ambiguous[title] = true;
+    } else if (!ambiguous[title]) {
+      out[title] = id;
+    }
+  }
+  return out;
+}
 
 
 // 会话预览文本：折叠空白 + 超长截断(单行，飞书风格一两行即可)。

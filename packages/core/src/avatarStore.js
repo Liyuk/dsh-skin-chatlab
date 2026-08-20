@@ -8,52 +8,104 @@
 // 盲点)，仍走 resolveSidebarSeed 的 title 兜底；但只要该行后续一旦解析出 id，下一次 refresh
 // 就会用 id 覆盖写入本表，从而收敛到与 header 同源。
 import { KEY_AVATAR_MAP } from "./prefs.js";
+import { avatarUrl } from "./avatar.js";
 
 var MAX_ENTRIES = 200; // 防止无限膨胀：超出按时间戳淘汰最旧的。
+var avatarMap = null;
+var avatarUse = {}; // 运行时 LRU，不为每次 refresh 额外写 localStorage。
+var avatarDirty = false;
+
+function touchAvatar(id) {
+  avatarUse[id] = Date.now();
+}
+
+function loadAvatarMap() {
+  if (avatarMap) return avatarMap;
+  try {
+    var raw = localStorage.getItem(KEY_AVATAR_MAP);
+    var value = raw ? JSON.parse(raw) : {};
+    avatarMap = (value && typeof value === "object" && !Array.isArray(value)) ? value : {};
+  } catch (e) {
+    avatarMap = {};
+  }
+  return avatarMap;
+}
+
+function isLegacyUrl(url, seed) {
+  if (typeof url !== "string" || !url) return true;
+  return url.indexOf("seed=" + encodeURIComponent(seed)) >= 0;
+}
+
+function persistAvatarMap(map) {
+  try {
+    localStorage.setItem(KEY_AVATAR_MAP, JSON.stringify(map));
+    avatarDirty = false;
+    return true;
+  } catch (e) {
+    // 保持 dirty：临时配额/隐私模式错误恢复后，后续刷新仍可重试写入。
+    return false;
+  }
+}
+
+// decorateSidebar 会在单次 refresh 内处理多行。延后到 refresh 尾部统一写入，
+// 避免首次加载几十/上百条会话时反复同步 JSON.stringify + localStorage.setItem。
+export function flushAvatarMap() {
+  if (!avatarDirty || !avatarMap) return false;
+  return persistAvatarMap(avatarMap);
+}
 
 /** 读整张映射表(id → {seed, url, at})。 */
 export function readAvatarMap() {
-  try {
-    var raw = localStorage.getItem(KEY_AVATAR_MAP);
-    if (!raw) return {};
-    var v = JSON.parse(raw);
-    return (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
-  } catch (e) { return {}; }
+  return loadAvatarMap();
 }
 
 /** 按 id 取头像 URL：命中缓存直接回、否则回 null(调用方决定是否生成)。 */
 export function avatarUrlForId(id) {
   if (!id) return null;
-  var map = readAvatarMap();
-  var e = map[id];
-  return (e && e.url) ? e.url : null;
+  var entry = loadAvatarMap()[id];
+  // 旧版本曾将原始 id/title 放到 DiceBear URL。首次刷新时强制迁移到不透明 token。
+  if (!entry || !entry.url || isLegacyUrl(entry.url, entry.seed || id)) return null;
+  touchAvatar(id);
+  return entry.url;
 }
 
 /**
  * 固化某会话 id 的头像到映射表。seed 优先取调用方给的外部值(与 header 同源时的 id)，
  * 没有则用 id 本身。返回最终 URL(调用方可直接用它设 img.src)。
  */
-export function rememberAvatar(id, seed, url) {
+export function rememberAvatar(id, seed, url, deferPersist) {
   if (!id) return null;
   var finalSeed = seed || id;
-  var finalUrl = url || "https://api.dicebear.com/9.x/avataaars/svg?radius=50&size=32&seed=" + encodeURIComponent(finalSeed);
-  var map = readAvatarMap();
+  var map = loadAvatarMap();
+  var previous = map[id];
+  if (previous && previous.seed === finalSeed && !isLegacyUrl(previous.url, finalSeed)) {
+    touchAvatar(id);
+    return previous.url;
+  }
+  var finalUrl = url || avatarUrl(finalSeed);
   map[id] = { seed: finalSeed, url: finalUrl, at: Date.now() };
+  avatarDirty = true;
+  touchAvatar(id);
   // 淘汰最旧，避免 localStorage 无限膨胀。
   var keys = Object.keys(map);
   if (keys.length > MAX_ENTRIES) {
-    keys.sort(function (a, b) { return ((map[a] && map[a].at) || 0) - ((map[b] && map[b].at) || 0); });
+    keys.sort(function (a, b) {
+      var aUsed = avatarUse[a] || ((map[a] && map[a].at) || 0);
+      var bUsed = avatarUse[b] || ((map[b] && map[b].at) || 0);
+      return aUsed - bUsed;
+    });
     var drop = keys.length - MAX_ENTRIES;
-    for (var i = 0; i < drop; i++) delete map[keys[i]];
+    for (var i = 0; i < drop; i++) {
+      delete avatarUse[keys[i]];
+      delete map[keys[i]];
+      avatarDirty = true;
+    }
   }
-  try { localStorage.setItem(KEY_AVATAR_MAP, JSON.stringify(map)); } catch (e) {}
+  if (!deferPersist) persistAvatarMap(map);
   return finalUrl;
 }
 
 /** 调试用：把整张表挂到 window.__chatlabAvatarMap(方便 reload 后看 id→url 对应关系)。 */
 export function exposeAvatarMap() {
-  try {
-    var map = readAvatarMap();
-    window.__chatlabAvatarMap = map;
-  } catch (e) {}
+  try { window.__chatlabAvatarMap = loadAvatarMap(); } catch (e) {}
 }

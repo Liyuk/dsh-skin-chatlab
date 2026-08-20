@@ -10,9 +10,9 @@ An extensible chat-skin **monorepo** for the [DeepSeek Harness (DSH)](https://gi
 
 | Package | Version | Role |
 |---|---|---|
-| [`@liyuk/dsh-skin-chatlab-core`](./packages/core/README.md) | 1.0.0 | **Base**: skin registry service, switcher, decoration logic, preview/unread RPC |
-| [`@liyuk/dsh-skin-feishu`](./packages/skin-feishu/README.md) | 1.0.0 | **Feishu skin**: workspaces→project groups, sessions→contacts, bubbled chat |
-| [`@liyuk/dsh-skin-chatlab`](./packages/chatlab/README.md) | 2.0.0 | **Aggregate**: depends on core + feishu |
+| [`@liyuk/dsh-skin-chatlab-core`](./packages/core/README.md) | 1.0.2 | **Base**: skin registry service, switcher, decoration logic, preview/unread RPC |
+| [`@liyuk/dsh-skin-feishu`](./packages/skin-feishu/README.md) | 1.0.2 | **Feishu skin**: workspaces→project groups, sessions→contacts, bubbled chat |
+| [`@liyuk/dsh-skin-chatlab`](./packages/chatlab/README.md) | 2.0.2 | **Aggregate**: depends on core + feishu |
 
 Each skin owns only **appearance** (layout / palette / bubbles) and **never touches DSH chat logic** or any existing plugin.
 

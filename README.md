@@ -8,9 +8,9 @@
 
 | 包 | 版本 | 作用 |
 |---|---|---|
-| [`@liyuk/dsh-skin-chatlab-core`](./packages/core/README.md) | 1.0.0 | **基座**：皮肤注册服务、切换器、装饰逻辑、预览/未读 RPC |
-| [`@liyuk/dsh-skin-feishu`](./packages/skin-feishu/README.md) | 1.0.0 | **飞书皮肤**：工作区=项目组、会话=联系人、聊天气泡化 |
-| [`@liyuk/dsh-skin-chatlab`](./packages/chatlab/README.md) | 2.0.0 | **聚合包**：一键依赖 core + feishu |
+| [`@liyuk/dsh-skin-chatlab-core`](./packages/core/README.md) | 1.0.2 | **基座**：皮肤注册服务、切换器、装饰逻辑、预览/未读 RPC |
+| [`@liyuk/dsh-skin-feishu`](./packages/skin-feishu/README.md) | 1.0.2 | **飞书皮肤**：工作区=项目组、会话=联系人、聊天气泡化 |
+| [`@liyuk/dsh-skin-chatlab`](./packages/chatlab/README.md) | 2.0.2 | **聚合包**：一键依赖 core + feishu |
 
 每套皮肤只负责**外观**（布局 / 配色 / 气泡样式），**绝不侵入 DSH 的聊天逻辑**，也不改动任何现有插件。
 

@@ -1,4 +1,4 @@
-// session 数据：读 sessions.list 快照 + 已读 seq 的 localStorage 读写。
+// 会话数据：读 sessions.list 快照 + 已读 seq 的 localStorage 读写。
 import { KEY_READ } from "./prefs.js";
 
 export function listSnapshot(ctx) {
@@ -15,15 +15,24 @@ export function readSeqs() {
   try {
     var raw = localStorage.getItem(KEY_READ);
     if (!raw) return {};
-    var v = JSON.parse(raw);
-    return (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
+    var value = JSON.parse(raw);
+    return (value && typeof value === "object" && !Array.isArray(value)) ? value : {};
   } catch (e) { return {}; }
 }
 
+export function writeSeqs(seqs) {
+  try { localStorage.setItem(KEY_READ, JSON.stringify(seqs)); } catch (e) {}
+}
+
+export function advanceRead(seqs, id, seq) {
+  if (!seqs || typeof seq !== "number" || seq <= 0) return false;
+  if ((seqs[id] || 0) >= seq) return false;
+  seqs[id] = seq;
+  return true;
+}
+
+// 兼容单点调用；批量预览路径应传递共享 map，并在完成后统一 writeSeqs。
 export function markRead(id, seq) {
-  if (typeof seq !== "number" || seq <= 0) return;
-  var m = readSeqs();
-  if ((m[id] || 0) >= seq) return;
-  m[id] = seq;
-  try { localStorage.setItem(KEY_READ, JSON.stringify(m)); } catch (e) {}
+  var seqs = readSeqs();
+  if (advanceRead(seqs, id, seq)) writeSeqs(seqs);
 }

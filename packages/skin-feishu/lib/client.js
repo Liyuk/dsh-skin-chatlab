@@ -1,10 +1,82 @@
 (() => {
   // packages/skin-feishu/src/feishu.js
+  var FEISHU_BRAND_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="6" fill="#1456F0"></rect><path d="M7 6.5h10v3h-6.7v2.4h5.8v2.8h-5.8v3.8H7z" fill="#fff"></path></svg>';
+  var DEFAULT_TOKENS_LIGHT = {
+    "brand-primary": "#1456F0",
+    "brand-text": "#1456F0",
+    "brand-primary-invert": "#FFFFFF",
+    "brand-primary-new-colorprimary-new-color": "#1456F0",
+    "bg-base": "#FFFFFF",
+    "bg-layer-1": "#F5F6F7",
+    "bg-layer-2": "#EFF0F1",
+    "bg-layer-3": "#EFF0F1",
+    "label-primary": "#1F2329",
+    "label-secondary": "#646A73",
+    "label-tertiary": "#8F959E",
+    "label-primary-foreground": "#FFFFFF",
+    "label-primary-inverted": "#FFFFFF",
+    "label-primary-bluish": "#1456F0",
+    "label-primary-dimmed": "#8F959E",
+    "label-caption": "#8F959E",
+    "label-dimmed": "#BBBFC4",
+    "border-l1": "#DEE0E3",
+    "border-l2": "#DEE0E3",
+    "border-l3": "#D0D3D6",
+    "interactive-bg-hover": "#EFF0F1",
+    "interactive-bg-active": "#E8EAED",
+    "interactive-bg-hover-accent": "#EAF1FF",
+    "button-primary-fill": "#1456F0",
+    "button-primary-hover": "#0F4BD8",
+    "button-primary-dimmed": "#D9E4FF",
+    "state-success-primary": "#34C724",
+    "state-error-primary": "#F54A45",
+    "state-warn-primary": "#FF8800",
+    "state-business-primary": "#1456F0",
+    "tooltip-bg": "#1F2329",
+    "toast-bg": "#1F2329"
+  };
+  var DEFAULT_TOKENS_DARK = {
+    "brand-primary": "#4C88FF",
+    "brand-text": "#4C88FF",
+    "brand-primary-invert": "#FFFFFF",
+    "brand-primary-new-colorprimary-new-color": "#4C88FF",
+    "bg-base": "#1A1A1A",
+    "bg-layer-1": "#17191A",
+    "bg-layer-2": "#232425",
+    "bg-layer-3": "#2B2D2E",
+    "label-primary": "#E8EAED",
+    "label-secondary": "#9CA0A8",
+    "label-tertiary": "#6F7378",
+    "label-primary-foreground": "#FFFFFF",
+    "label-primary-inverted": "#1F2329",
+    "label-primary-bluish": "#4C88FF",
+    "label-primary-dimmed": "#6F7378",
+    "label-caption": "#6F7378",
+    "label-dimmed": "#4A4D52",
+    "border-l1": "#3A3C40",
+    "border-l2": "#34363A",
+    "border-l3": "#2E3034",
+    "interactive-bg-hover": "#2B2D2E",
+    "interactive-bg-active": "#333637",
+    "interactive-bg-hover-accent": "#223354",
+    "button-primary-fill": "#4C88FF",
+    "button-primary-hover": "#3D7BFF",
+    "button-primary-dimmed": "#223354",
+    "state-success-primary": "#45D538",
+    "state-error-primary": "#FF5A57",
+    "state-warn-primary": "#FFA940",
+    "state-business-primary": "#4C88FF",
+    "tooltip-bg": "#2B2D2E",
+    "toast-bg": "#2B2D2E"
+  };
   var FEISHU_CSS = [
-    // ===================== 品牌徽章 =====================
-    // 保留原 DeepSeek 鲸鱼 icon，只在旁边追加当前皮肤名徽章。
+    // ===================== 品牌锁定 =====================
+    // 保留原 DeepSeek 鲸鱼 icon；旁边追加紧凑的 F 字标 + 飞书字标，避免普通文字胶囊的廉价感。
     'html[data-chatlab-skin="feishu"] [class*="brand"] { display: inline-flex; align-items: center; gap: 8px; }',
-    'html[data-chatlab-skin="feishu"] .cl-brand-skin { font-size: 11px; font-weight: 500; color: #1456F0; background: var(--dsw-alias-interactive-bg-hover-accent); border-radius: 4px; padding: 1px 6px; white-space: nowrap; }',
+    'html[data-chatlab-skin="feishu"] .cl-brand-skin { display: inline-flex; align-items: center; gap: 6px; height: 24px; box-sizing: border-box; padding: 0 8px 0 4px; border: 1px solid rgba(20, 86, 240, .16); border-radius: 7px; color: #1456F0; background: var(--dsw-alias-interactive-bg-hover-accent); font-size: 12px; font-weight: 600; line-height: 1; letter-spacing: .01em; white-space: nowrap; }',
+    'html[data-chatlab-skin="feishu"] .cl-brand-mark { display: inline-flex; width: 18px; height: 18px; flex: none; color: #1456F0; }',
+    'html[data-chatlab-skin="feishu"] .cl-brand-mark img { display: block; width: 18px; height: 18px; }',
+    'html[data-chatlab-skin="feishu"] .cl-brand-label { display: inline-block; transform: translateY(-.5px); }',
     // ===================== 左侧：项目组(Meego 风) =====================
     'html[data-chatlab-skin="feishu"] [class*="projectRow"] { margin: 1px 8px; border-radius: 8px; transition: background .15s ease; }',
     'html[data-chatlab-skin="feishu"] [class*="projectRow"]:hover { background: var(--dsw-alias-interactive-bg-hover); }',
@@ -85,10 +157,10 @@
     // ===================== 原生回合状态("Deep diving...")→ 飞书"正在输入…" =====================
     // 原文字用透明色+渐变裁剪(shimmer)渲染，CSS 无法直接改文本节点：
     // font-size:0 隐藏原文本 + background/animation:none 去掉流光。
-    // 新内容("正在输入"+三点错峰跳动)由 core 的 decorateTurnStatus 注入到时钟之前，
-    // 圆点复用 .cl-typing-dot 的错峰动效。
-    'html[data-chatlab-skin="feishu"] [class*="turnStatus"]:not([class*="turnStatusClock"]) { font-size: 0; background: none; animation: none; -webkit-text-fill-color: var(--dsw-alias-label-tertiary); }',
-    'html[data-chatlab-skin="feishu"] .cl-turn-typing { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 400; line-height: 18px; color: var(--dsw-alias-label-secondary); letter-spacing: .01em; white-space: nowrap; }',
+    // 新内容("正在输入"+三点错峰跳动)由 core 追加到状态容器末尾，再以 flex/order 显示在
+    // 时钟之前，避免移动 React 管理的节点。
+    'html[data-chatlab-skin="feishu"] [class*="turnStatus"]:not([class*="turnStatusClock"]) { display: inline-flex; align-items: center; font-size: 0; background: none; animation: none; -webkit-text-fill-color: var(--dsw-alias-label-tertiary); }',
+    'html[data-chatlab-skin="feishu"] .cl-turn-typing { display: inline-flex; align-items: center; order: -1; gap: 4px; font-size: 12.5px; font-weight: 400; line-height: 18px; color: var(--dsw-alias-label-secondary); letter-spacing: .01em; white-space: nowrap; }',
     'html[data-chatlab-skin="feishu"] .cl-turn-typing .cl-typing-dot { width: 5px; height: 5px; background: var(--dsw-alias-label-secondary); }',
     'html[data-chatlab-skin="feishu"] [class*="turnStatusClock"] { font-size: 11px; color: var(--dsw-alias-label-tertiary); -webkit-text-fill-color: var(--dsw-alias-label-tertiary); margin-left: 6px; }'
   ].join("\n");
@@ -107,7 +179,8 @@
           name: "\u98DE\u4E66",
           desc: "\u5DE5\u4F5C\u533A=\u9879\u76EE\u7EC4 \xB7 \u4F1A\u8BDD=\u8054\u7CFB\u4EBA \xB7 \u6C14\u6CE1\u5316\u804A\u5929",
           ready: true,
-          tokens: { light: {}, dark: {} },
+          tokens: { light: DEFAULT_TOKENS_LIGHT, dark: DEFAULT_TOKENS_DARK },
+          brand: { svg: FEISHU_BRAND_SVG },
           css: FEISHU_CSS
         });
       }

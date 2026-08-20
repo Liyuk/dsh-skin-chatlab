@@ -44,6 +44,15 @@ export function makeSettingsPanel(react) {
     var ctx = pluginCtx;
     var skinState = react.useState(readSkin());
     var skin = skinState[0], setSkin = skinState[1];
+    // skin 包可在 core/设置页挂载之后才注册；订阅后触发重渲染并同步当前选择。
+    var registryState = react.useState(0);
+    var registryVersion = registryState[0], setRegistryVersion = registryState[1];
+    react.useEffect(function () {
+      return skinRegistry.subscribe(function () {
+        setSkin(readSkin());
+        setRegistryVersion(function (v) { return v + 1; });
+      });
+    }, []);
     // 深色状态直接读 DSH 主题服务，而不是自己维护的 KEY_THEME。
     var themeSvc = null;
     try { themeSvc = ctx ? ctx.get("theme") : null; } catch (e) {}

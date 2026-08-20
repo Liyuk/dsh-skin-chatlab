@@ -1,6 +1,6 @@
 {
   "name": "@liyuk/dsh-skin-chatlab",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "ChatLab 聚合包：一键安装基座 + 飞书皮肤。安装本包会通过 dependencies 拉入 core 和 skin-feishu；在 profile 的 bundles 里加入 @liyuk/dsh-skin-chatlab-core 和 @liyuk/dsh-skin-feishu 即可。如需更多皮肤，单独安装 @liyuk/dsh-skin-<name>。",
   "license": "MIT",
   "type": "module",
@@ -11,7 +11,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@liyuk/dsh-skin-chatlab-core": "^1.0.0",
-    "@liyuk/dsh-skin-feishu": "^1.0.0"
+    "@liyuk/dsh-skin-chatlab-core": "^1.0.2",
+    "@liyuk/dsh-skin-feishu": "^1.0.2"
   }
 }

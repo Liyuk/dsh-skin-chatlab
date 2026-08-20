@@ -9,11 +9,23 @@ export const KEY_AVATAR_MAP = "dsh-skin-chatlab.avatar"; // { [sessionId]: {seed
 export function readSkin() {
   try {
     var v = localStorage.getItem(KEY_SKIN);
-    // "none" 是合法的"关闭皮肤"偏好，不是皮肤 id，必须放行；其余未知值回落 feishu。
+    // "none" 是合法的"关闭皮肤"偏好，不是皮肤 id，必须放行。
     if (v === "none") return "none";
-    return skinRegistry.has(v) ? v : "feishu";
+    var selected = v && skinRegistry.get(v);
+    if (selected && selected.ready) return v;
+    // core 可以独立安装；没有已注册的可用皮肤时必须保持默认外观。皮肤包晚到时，
+    // registry 订阅会再次读取此偏好并自动激活相应皮肤。
+    return firstReadySkin();
   }
-  catch (e) { return "feishu"; }
+  catch (e) { return firstReadySkin(); }
+}
+
+function firstReadySkin() {
+  var skins = skinRegistry.list();
+  for (var i = 0; i < skins.length; i++) {
+    if (skins[i].ready) return skins[i].id;
+  }
+  return "none";
 }
 
 export function readTheme() {

@@ -4,9 +4,16 @@
     const skins = [];
     const byId = {};
     const listeners = [];
+    function notify(def) {
+      for (let i = 0; i < listeners.length; i++) {
+        try {
+          listeners[i](def);
+        } catch (e) {
+        }
+      }
+    }
     function registerSkin(def) {
       if (!def || typeof def.id !== "string" || !def.id) return;
-      if (byId[def.id]) return;
       const normalized = {
         id: def.id,
         name: def.name || def.id,
@@ -14,16 +21,22 @@
         ready: def.ready !== false,
         // 缺省 true
         tokens: def.tokens || { light: {}, dark: {} },
-        css: def.css || ""
+        css: def.css || "",
+        brand: def.brand || null
       };
+      var exists = !!byId[def.id];
       byId[def.id] = normalized;
-      skins.push(normalized);
-      for (let i = 0; i < listeners.length; i++) {
-        try {
-          listeners[i](normalized);
-        } catch (e) {
+      if (exists) {
+        for (var i = 0; i < skins.length; i++) {
+          if (skins[i].id === def.id) {
+            skins[i] = normalized;
+            break;
+          }
         }
+      } else {
+        skins.push(normalized);
       }
+      notify(normalized);
     }
     function subscribe(fn) {
       listeners.push(fn);
@@ -43,7 +56,9 @@
     }
     return { registerSkin, subscribe, list, get, has };
   }
-  var singleton = createSkinRegistry();
+  var REGISTRY_KEY = "__dshSkinChatlabRegistry";
+  var root = typeof globalThis !== "undefined" ? globalThis : {};
+  var singleton = root[REGISTRY_KEY] || (root[REGISTRY_KEY] = createSkinRegistry());
 
   // packages/core/src/prefs.js
   var KEY_SKIN = "dsh-skin-chatlab.skin";
@@ -54,10 +69,19 @@
     try {
       var v = localStorage.getItem(KEY_SKIN);
       if (v === "none") return "none";
-      return singleton.has(v) ? v : "feishu";
+      var selected = v && singleton.get(v);
+      if (selected && selected.ready) return v;
+      return firstReadySkin();
     } catch (e) {
-      return "feishu";
+      return firstReadySkin();
     }
+  }
+  function firstReadySkin() {
+    var skins = singleton.list();
+    for (var i = 0; i < skins.length; i++) {
+      if (skins[i].ready) return skins[i].id;
+    }
+    return "none";
   }
   function applyHtml(skin, theme) {
     var el = document.documentElement;
@@ -126,6 +150,16 @@
       var ctx = pluginCtx;
       var skinState = react.useState(readSkin());
       var skin = skinState[0], setSkin = skinState[1];
+      var registryState = react.useState(0);
+      var registryVersion = registryState[0], setRegistryVersion = registryState[1];
+      react.useEffect(function() {
+        return singleton.subscribe(function() {
+          setSkin(readSkin());
+          setRegistryVersion(function(v) {
+            return v + 1;
+          });
+        });
+      }, []);
       var themeSvc = null;
       try {
         themeSvc = ctx ? ctx.get("theme") : null;
@@ -251,8 +285,23 @@
     var def = singleton.get(skin);
     if (!def) return blocks.join("\n");
     blocks.push(COMMON_CSS);
+    var light = tokenCss(def.tokens && def.tokens.light);
+    if (light) blocks.push("html[data-chatlab-skin] { " + light + " }");
+    var dark = tokenCss(def.tokens && def.tokens.dark);
+    if (dark) blocks.push("html[data-chatlab-skin] body[data-ds-dark-theme] { " + dark + " }");
     if (def.css) blocks.push(def.css);
     return blocks.join("\n");
+  }
+  function tokenCss(tokens) {
+    if (!tokens || typeof tokens !== "object") return "";
+    var keys = Object.keys(tokens);
+    var parts = [];
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      var value = tokens[key];
+      if (typeof value === "string" && value) parts.push("--dsw-alias-" + key + ": " + value + ";");
+    }
+    return parts.join(" ");
   }
   function makeRebuildCss() {
     var currentStyleEl = null;
@@ -303,6 +352,24 @@
           claimed = true;
           break;
         }
+      }
+    }
+    return out;
+  }
+  function buildIdByTitle(snap) {
+    var out = {};
+    var ambiguous = {};
+    if (!snap || !snap.byId || !Array.isArray(snap.ids)) return out;
+    for (var i = 0; i < snap.ids.length; i++) {
+      var id = snap.ids[i];
+      var s = snap.byId[id];
+      var title = norm(s && s.displayTitle);
+      if (!title) continue;
+      if (out[title] && out[title] !== id) {
+        delete out[title];
+        ambiguous[title] = true;
+      } else if (!ambiguous[title]) {
+        out[title] = id;
       }
     }
     return out;
@@ -372,32 +439,67 @@
 
   // packages/core/src/avatar.js
   var AVATAR_BASE = "https://api.dicebear.com/9.x/avataaars/svg?radius=50&size=32&seed=";
-  function avatarUrl(seed) {
-    return AVATAR_BASE + encodeURIComponent(norm(seed) || "dsh");
+  var opaqueSeeds = {};
+  function opaqueSeed(seed) {
+    var key = norm(seed) || "dsh";
+    if (opaqueSeeds[key]) return opaqueSeeds[key];
+    var token;
+    try {
+      var bytes = new Uint32Array(2);
+      crypto.getRandomValues(bytes);
+      token = bytes[0].toString(36) + bytes[1].toString(36);
+    } catch (e) {
+      token = hashHue(key).toString(36) + Math.random().toString(36).slice(2);
+    }
+    opaqueSeeds[key] = token;
+    return token;
   }
-  function makeAvatar(seed, extraClass) {
-    var s = norm(seed) || "dsh";
-    var img = document.createElement("img");
-    img.className = "cl-avatar" + (extraClass ? " " + extraClass : "");
-    img.setAttribute("data-seed", s);
-    img.alt = "";
-    img.loading = "lazy";
-    img.setAttribute("fetchpriority", "low");
-    img.decoding = "async";
-    img.style.backgroundColor = "hsl(" + hashHue(s) + ", 42%, 88%)";
-    img.draggable = false;
-    img.src = avatarUrl(s);
+  function avatarUrl(seed) {
+    return AVATAR_BASE + encodeURIComponent(opaqueSeed(seed));
+  }
+  function installAvatarFallback(img, seed) {
     img.onerror = function() {
       if (img._failed) return;
       img._failed = true;
       var span = document.createElement("span");
       span.className = img.className + " cl-avatar-initial";
-      span.setAttribute("data-seed", s);
-      span.style.background = "hsl(" + hashHue(s) + ", 60%, 52%)";
-      span.textContent = (s.charAt(0) || "?").toUpperCase();
+      span.setAttribute("data-seed", seed);
+      span.style.background = "hsl(" + hashHue(seed) + ", 60%, 52%)";
+      span.textContent = (seed.charAt(0) || "?").toUpperCase();
       if (img.parentNode) img.parentNode.replaceChild(span, img);
     };
+  }
+  function configureAvatarImage(img, seed, src, extraClass) {
+    img.className = "cl-avatar" + (extraClass ? " " + extraClass : "");
+    img.setAttribute("data-seed", seed);
+    img.alt = "";
+    img.loading = "lazy";
+    img.setAttribute("fetchpriority", "low");
+    img.decoding = "async";
+    img.style.backgroundColor = "hsl(" + hashHue(seed) + ", 42%, 88%)";
+    img.draggable = false;
+    img._failed = false;
+    installAvatarFallback(img, seed);
+    if (img.getAttribute("src") !== src) img.src = src;
     return img;
+  }
+  function makeAvatar(seed, extraClass) {
+    var s = norm(seed) || "dsh";
+    var img = document.createElement("img");
+    return configureAvatarImage(img, s, avatarUrl(s), extraClass);
+  }
+  function updateAvatar(existing, seed, src, extraClass) {
+    var s = norm(seed) || "dsh";
+    if (existing && existing.tagName === "IMG") {
+      return configureAvatarImage(existing, s, src, extraClass);
+    }
+    if (existing && existing.classList.contains("cl-avatar-initial") && existing.getAttribute("data-seed") === s) {
+      return existing;
+    }
+    var fresh = makeAvatar(s, extraClass);
+    if (fresh.getAttribute("src") !== src) fresh.src = src;
+    if (existing && existing.parentNode) existing.parentNode.replaceChild(fresh, existing);
+    return fresh;
   }
 
   // packages/core/src/session.js
@@ -416,21 +518,27 @@
     try {
       var raw = localStorage.getItem(KEY_READ);
       if (!raw) return {};
-      var v = JSON.parse(raw);
-      return v && typeof v === "object" && !Array.isArray(v) ? v : {};
+      var value = JSON.parse(raw);
+      return value && typeof value === "object" && !Array.isArray(value) ? value : {};
     } catch (e) {
       return {};
     }
   }
-  function markRead(id, seq) {
-    if (typeof seq !== "number" || seq <= 0) return;
-    var m = readSeqs();
-    if ((m[id] || 0) >= seq) return;
-    m[id] = seq;
+  function writeSeqs(seqs) {
     try {
-      localStorage.setItem(KEY_READ, JSON.stringify(m));
+      localStorage.setItem(KEY_READ, JSON.stringify(seqs));
     } catch (e) {
     }
+  }
+  function advanceRead(seqs, id, seq) {
+    if (!seqs || typeof seq !== "number" || seq <= 0) return false;
+    if ((seqs[id] || 0) >= seq) return false;
+    seqs[id] = seq;
+    return true;
+  }
+  function markRead(id, seq) {
+    var seqs = readSeqs();
+    if (advanceRead(seqs, id, seq)) writeSeqs(seqs);
   }
 
   // packages/core/src/dom.js
@@ -438,10 +546,18 @@
     var t = row.querySelector('[class*="title"]');
     return t ? t.textContent : row.textContent;
   }
-  function rowId(row, idByTitle) {
-    var id = row.getAttribute("data-cl-session-id") || row.getAttribute("data-session-id") || row.getAttribute("data-id") || row.getAttribute("data-key");
+  function isSelectedRow(row) {
+    return /(^|[\s_])selected([\s_]|$)/.test(row.className || "");
+  }
+  function rowId(row, idByTitle, current) {
+    var id = row.getAttribute("data-session-id") || row.getAttribute("data-id") || row.getAttribute("data-key");
     if (id) return id;
-    return idByTitle[norm(titleOf(row))];
+    id = idByTitle[norm(titleOf(row))];
+    if (id) return id;
+    if (!isSelectedRow(row)) return null;
+    var bound = row.getAttribute("data-cl-session-id");
+    var boundTitle = row.getAttribute("data-cl-session-title");
+    return bound && bound === current && boundTitle === norm(titleOf(row)) ? bound : null;
   }
   function addPreview(row, text) {
     var clipped = clipPreview(text);
@@ -456,13 +572,26 @@
     preview.textContent = clipped;
     row.appendChild(preview);
   }
-  function applyUnread(row, id, lastSeq, current, active) {
-    var m = readSeqs();
+  function clearPreview(row) {
+    var preview = row.querySelector(".cl-preview");
+    if (preview) preview.remove();
+  }
+  function clearUnread(row) {
+    row.classList.remove("cl-unread");
+    var badge = row.querySelector(".cl-unread-dot");
+    if (badge) badge.remove();
+  }
+  function applyUnread(row, id, lastSeq, current, active, readMap) {
+    var m = readMap || readSeqs();
     var readSeq = id in m ? m[id] : 0;
     var isActive = active && active[String(id)];
     var isCurrent = id === current;
     var d = unreadDecision(readSeq, lastSeq, isActive, isCurrent);
-    if (d.markReadTo !== null && d.markReadTo !== void 0) markRead(id, d.markReadTo);
+    var changed = false;
+    if (d.markReadTo !== null && d.markReadTo !== void 0) {
+      if (readMap) changed = advanceRead(m, id, d.markReadTo);
+      else markRead(id, d.markReadTo);
+    }
     row.classList.toggle("cl-unread", d.unread);
     var badge = row.querySelector(".cl-unread-dot");
     if (d.unread && !badge) {
@@ -472,55 +601,104 @@
     } else if (!d.unread && badge) {
       badge.remove();
     }
+    return changed;
   }
 
   // packages/core/src/avatarStore.js
   var MAX_ENTRIES = 200;
-  function readAvatarMap() {
+  var avatarMap = null;
+  var avatarUse = {};
+  var avatarDirty = false;
+  function touchAvatar(id) {
+    avatarUse[id] = Date.now();
+  }
+  function loadAvatarMap() {
+    if (avatarMap) return avatarMap;
     try {
       var raw = localStorage.getItem(KEY_AVATAR_MAP);
-      if (!raw) return {};
-      var v = JSON.parse(raw);
-      return v && typeof v === "object" && !Array.isArray(v) ? v : {};
+      var value = raw ? JSON.parse(raw) : {};
+      avatarMap = value && typeof value === "object" && !Array.isArray(value) ? value : {};
     } catch (e) {
-      return {};
+      avatarMap = {};
     }
+    return avatarMap;
+  }
+  function isLegacyUrl(url, seed) {
+    if (typeof url !== "string" || !url) return true;
+    return url.indexOf("seed=" + encodeURIComponent(seed)) >= 0;
+  }
+  function persistAvatarMap(map) {
+    try {
+      localStorage.setItem(KEY_AVATAR_MAP, JSON.stringify(map));
+      avatarDirty = false;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  function flushAvatarMap() {
+    if (!avatarDirty || !avatarMap) return false;
+    return persistAvatarMap(avatarMap);
   }
   function avatarUrlForId(id) {
     if (!id) return null;
-    var map = readAvatarMap();
-    var e = map[id];
-    return e && e.url ? e.url : null;
+    var entry = loadAvatarMap()[id];
+    if (!entry || !entry.url || isLegacyUrl(entry.url, entry.seed || id)) return null;
+    touchAvatar(id);
+    return entry.url;
   }
-  function rememberAvatar(id, seed, url) {
+  function rememberAvatar(id, seed, url, deferPersist) {
     if (!id) return null;
     var finalSeed = seed || id;
-    var finalUrl = url || "https://api.dicebear.com/9.x/avataaars/svg?radius=50&size=32&seed=" + encodeURIComponent(finalSeed);
-    var map = readAvatarMap();
+    var map = loadAvatarMap();
+    var previous = map[id];
+    if (previous && previous.seed === finalSeed && !isLegacyUrl(previous.url, finalSeed)) {
+      touchAvatar(id);
+      return previous.url;
+    }
+    var finalUrl = url || avatarUrl(finalSeed);
     map[id] = { seed: finalSeed, url: finalUrl, at: Date.now() };
+    avatarDirty = true;
+    touchAvatar(id);
     var keys = Object.keys(map);
     if (keys.length > MAX_ENTRIES) {
       keys.sort(function(a, b) {
-        return (map[a] && map[a].at || 0) - (map[b] && map[b].at || 0);
+        var aUsed = avatarUse[a] || (map[a] && map[a].at || 0);
+        var bUsed = avatarUse[b] || (map[b] && map[b].at || 0);
+        return aUsed - bUsed;
       });
       var drop = keys.length - MAX_ENTRIES;
-      for (var i = 0; i < drop; i++) delete map[keys[i]];
+      for (var i = 0; i < drop; i++) {
+        delete avatarUse[keys[i]];
+        delete map[keys[i]];
+        avatarDirty = true;
+      }
     }
-    try {
-      localStorage.setItem(KEY_AVATAR_MAP, JSON.stringify(map));
-    } catch (e) {
-    }
+    if (!deferPersist) persistAvatarMap(map);
     return finalUrl;
   }
   function exposeAvatarMap() {
     try {
-      var map = readAvatarMap();
-      window.__chatlabAvatarMap = map;
+      window.__chatlabAvatarMap = loadAvatarMap();
     } catch (e) {
     }
   }
 
   // packages/core/src/decorators.js
+  function appendBrandMark(container, svg) {
+    if (!svg) return;
+    var mark = document.createElement("span");
+    mark.className = "cl-brand-mark";
+    mark.setAttribute("aria-hidden", "true");
+    var image = document.createElement("img");
+    image.className = "cl-brand-mark-image";
+    image.setAttribute("alt", "");
+    image.setAttribute("aria-hidden", "true");
+    image.setAttribute("draggable", "false");
+    image.setAttribute("src", "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg));
+    mark.appendChild(image);
+    container.appendChild(mark);
+  }
   function decorateBrand() {
     var brand = document.querySelector('[class*="brand"]');
     if (!brand) return;
@@ -533,12 +711,27 @@
       return;
     }
     if (existing) {
-      if (existing.textContent !== label) existing.textContent = label;
+      existing.textContent = "";
+      appendBrandMark(existing, def.brand && typeof def.brand.svg === "string" ? def.brand.svg : "");
+      var existingLabel = document.createElement("span");
+      existingLabel.className = "cl-brand-label";
+      existingLabel.textContent = label;
+      existing.appendChild(existingLabel);
+      existing.setAttribute("aria-label", label);
+      existing.setAttribute("title", label);
       return;
     }
     var badge = document.createElement("span");
     badge.className = "cl-brand-skin";
-    badge.textContent = label;
+    badge.setAttribute("aria-label", label);
+    badge.setAttribute("title", label);
+    if (def.brand && typeof def.brand.svg === "string" && def.brand.svg) {
+      appendBrandMark(badge, def.brand.svg);
+    }
+    var wordmark = document.createElement("span");
+    wordmark.className = "cl-brand-label";
+    wordmark.textContent = label;
+    badge.appendChild(wordmark);
     brand.appendChild(badge);
   }
   function decorateSidebar(snap, idByTitle, active) {
@@ -550,9 +743,9 @@
     for (i = 0; i < rows.length; i++) {
       var row = rows[i];
       descs.push({
-        _id: rowId(row, idByTitle),
+        _id: rowId(row, idByTitle, current),
         title: norm(titleOf(row)),
-        selected: current && isCurrentRow(row, current, idByTitle)
+        selected: isSelectedRow(row)
       });
     }
     var assigned = assignRowIds(descs, current);
@@ -560,19 +753,22 @@
       var r = rows[i];
       var info = assigned[i];
       var id = info._id;
-      var av = r.querySelector(".cl-avatar");
-      if (id) r.setAttribute("data-cl-session-id", id);
-      var seed = id ? id : resolveSidebarSeed(null, info.title, current, currentDisplay);
-      var src = id ? rememberAvatar(id, id, null) : avatarUrl(seed);
-      if (av) {
-        if (av.getAttribute("data-seed") !== seed) {
-          av.setAttribute("data-seed", seed);
-          av.src = src;
-        }
+      var previousId = r.getAttribute("data-cl-session-id");
+      if (id && previousId !== id) clearRowIdentityState(r);
+      if (id) {
+        r.setAttribute("data-cl-session-id", id);
+        r.setAttribute("data-cl-session-title", info.title);
       } else {
-        var fresh = makeAvatar(seed);
-        fresh.src = src;
-        r.appendChild(fresh);
+        clearRowIdentityState(r);
+        r.removeAttribute("data-cl-session-id");
+        r.removeAttribute("data-cl-session-title");
+      }
+      var av = r.querySelector(".cl-avatar");
+      var seed = id ? id : resolveSidebarSeed(null, info.title, current, currentDisplay);
+      var src = id ? rememberAvatar(id, id, null, true) : avatarUrl(seed);
+      var nextAvatar = updateAvatar(av, seed, src);
+      if (!av) {
+        r.appendChild(nextAvatar);
       }
       applyAvatarStatus(r, active[String(id)], snap, id);
     }
@@ -593,11 +789,11 @@
       dot.remove();
     }
   }
-  function isCurrentRow(row, current, idByTitle) {
-    var stored = row.getAttribute("data-cl-session-id");
-    if (stored) return stored === current;
-    if (idByTitle[norm(titleOf(row))] === current) return true;
-    return /(^|[\s_])selected([\s_]|$)/.test(row.className || "");
+  function clearRowIdentityState(row) {
+    clearPreview(row);
+    clearUnread(row);
+    var dot = row.querySelector(".cl-running-dot");
+    if (dot) dot.remove();
   }
   function decorateProjects() {
     var rows = document.querySelectorAll('[class*="projectRow"]');
@@ -605,16 +801,18 @@
       var row = rows[i];
       var folderSlot = row.querySelector('[class*="folder"]');
       if (!folderSlot) continue;
-      if (folderSlot.querySelector(".cl-project-icon")) continue;
       var title = row.querySelector('[class*="projectText"] [class*="title"], [class*="projectText"]');
       var text = norm(title ? title.textContent : row.textContent);
       var initial = (text.charAt(0) || "?").toUpperCase();
       var hue = hashHue(text);
-      var block = document.createElement("span");
-      block.className = "cl-project-icon";
+      var block = folderSlot.querySelector(".cl-project-icon");
+      if (!block) {
+        block = document.createElement("span");
+        block.className = "cl-project-icon";
+        folderSlot.appendChild(block);
+      }
       block.textContent = initial;
       block.style.background = "hsl(" + hue + ", 70%, 55%)";
-      folderSlot.appendChild(block);
     }
   }
   function decorateHeader(ctx, snap) {
@@ -630,40 +828,145 @@
       src = avatarUrl(seed);
     }
     var existing = cluster.querySelector(".cl-avatar");
-    if (existing) {
-      if (existing.getAttribute("data-seed") === seed) return;
-      existing.setAttribute("data-seed", seed);
-      existing.src = src;
+    var nextAvatar = updateAvatar(existing, seed, src, "cl-header-avatar");
+    if (!existing) {
+      cluster.appendChild(nextAvatar);
+    }
+  }
+  var previewStates = /* @__PURE__ */ new WeakMap();
+  var PREVIEW_TIMEOUT_MS = 8e3;
+  function previewStateFor(ctx) {
+    var state = previewStates.get(ctx);
+    if (!state) {
+      state = { generation: 0, inFlight: false, queued: null, disposed: false, connection: null, timeout: null };
+      previewStates.set(ctx, state);
+    }
+    return state;
+  }
+  function rowStillMatchesPreview(ctx, item, latest, latestIdByTitle) {
+    if (item.row.isConnected === false) return false;
+    latest = latest || listSnapshot(ctx);
+    if (!latest) return false;
+    latestIdByTitle = latestIdByTitle || buildIdByTitle(latest);
+    if (isSelectedRow(item.row) && latest.current !== item.current) return false;
+    if (item.row.getAttribute("data-cl-session-id") !== item.id) return false;
+    if (item.row.getAttribute("data-cl-session-title") !== norm(titleOf(item.row))) return false;
+    if (item.row.querySelector('[class*="title"]') !== item.titleNode) return false;
+    return rowId(item.row, latestIdByTitle, latest.current) === item.id;
+  }
+  function finishPreviewRequest(ctx, state) {
+    state.inFlight = false;
+    var queued = state.queued;
+    state.queued = null;
+    if (queued && !state.disposed) startPreviewRequest(ctx, state, queued);
+  }
+  function startPreviewRequest(ctx, state, request) {
+    state.inFlight = true;
+    var settled = false;
+    var timeout = setTimeout(function() {
+      if (settled) return;
+      request.expired = true;
+      settled = true;
+      if (state.timeout === timeout) state.timeout = null;
+      finishPreviewRequest(ctx, state);
+    }, PREVIEW_TIMEOUT_MS);
+    state.timeout = timeout;
+    function settle() {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (state.timeout === timeout) state.timeout = null;
+      finishPreviewRequest(ctx, state);
+    }
+    var promise;
+    try {
+      promise = request.connection.rpc.call("/dsh-skin-chatlab", "previews", { ids: request.ids });
+    } catch (e) {
+      settle();
       return;
     }
-    var fresh = makeAvatar(seed, "cl-header-avatar");
-    fresh.src = src;
-    cluster.appendChild(fresh);
-  }
-  function applyPreviews(ctx, snap, idByTitle, active) {
-    var connection = ctx.connection;
-    if (!connection || !connection.rpc || typeof connection.rpc.call !== "function") return;
-    var rows = document.querySelectorAll('[class*="sessionRow"]');
-    var need = [];
-    for (var i = 0; i < rows.length; i++) {
-      var id = rowId(rows[i], idByTitle);
-      if (id) need.push({ row: rows[i], id });
-    }
-    if (!need.length) return;
-    var ids = need.map(function(x) {
-      return x.id;
-    });
-    var current = snap && snap.current;
-    connection.rpc.call("/dsh-skin-chatlab", "previews", { ids }).then(function(res) {
-      if (!res || !res.ok) return;
-      var map = res.value || {};
-      for (var k = 0; k < need.length; k++) {
-        var info = map[need[k].id] || { text: "", lastSeq: -1 };
-        if (info.text) addPreview(need[k].row, info.text);
-        applyUnread(need[k].row, need[k].id, info.lastSeq, current, active);
+    Promise.resolve(promise).then(function(res) {
+      if (request.expired) return;
+      if (state.disposed || request.generation !== state.generation || state.connection !== request.connection) {
+        settle();
+        return;
+      }
+      try {
+        if (!res || !res.ok) return;
+        var map = res.value || {};
+        var latest = listSnapshot(ctx);
+        var latestIdByTitle = buildIdByTitle(latest);
+        var readMap = readSeqs();
+        var readChanged = false;
+        for (var i = 0; i < request.items.length; i++) {
+          var item = request.items[i];
+          if (!rowStillMatchesPreview(ctx, item, latest, latestIdByTitle)) continue;
+          if (!Object.prototype.hasOwnProperty.call(map, item.id)) continue;
+          var info = map[item.id];
+          if (info && info.unavailable) continue;
+          if (!info) continue;
+          if (info.text) addPreview(item.row, info.text);
+          else clearPreview(item.row);
+          if (applyUnread(item.row, item.id, info.lastSeq, request.current, request.active, readMap)) {
+            readChanged = true;
+          }
+        }
+        if (readChanged) writeSeqs(readMap);
+      } finally {
+        settle();
       }
     }).catch(function() {
+      settle();
     });
+  }
+  function disposePreviews(ctx) {
+    var state = previewStates.get(ctx);
+    if (!state) return;
+    state.disposed = true;
+    state.generation += 1;
+    state.queued = null;
+    state.inFlight = false;
+    if (state.timeout) clearTimeout(state.timeout);
+    state.timeout = null;
+    previewStates.delete(ctx);
+  }
+  function applyPreviews(ctx, snap, idByTitle, active) {
+    var state = previewStateFor(ctx);
+    state.disposed = false;
+    var connection = ctx.connection;
+    state.connection = connection;
+    if (!connection || !connection.rpc || typeof connection.rpc.call !== "function") return;
+    var current = snap && snap.current;
+    var rows = document.querySelectorAll('[class*="sessionRow"]');
+    var items = [];
+    for (var i = 0; i < rows.length; i++) {
+      var id = rowId(rows[i], idByTitle, current);
+      if (id) {
+        items.push({
+          row: rows[i],
+          id,
+          idByTitle,
+          current,
+          titleNode: rows[i].querySelector('[class*="title"]')
+        });
+      }
+    }
+    if (!items.length) return;
+    var request = {
+      generation: state.generation,
+      connection,
+      ids: items.map(function(item) {
+        return item.id;
+      }),
+      items,
+      current,
+      active
+    };
+    if (state.inFlight) {
+      state.queued = request;
+      return;
+    }
+    startPreviewRequest(ctx, state, request);
   }
   function decorateTurnStatus() {
     var status = document.querySelector('[class*="turnStatus"]:not([class*="turnStatusClock"])');
@@ -672,26 +975,18 @@
     var wrap = document.createElement("span");
     wrap.className = "cl-turn-typing";
     wrap.innerHTML = '<span>\u6B63\u5728\u8F93\u5165</span><span class="cl-typing-dot"></span><span class="cl-typing-dot"></span><span class="cl-typing-dot"></span>';
-    var clock = status.querySelector('[class*="turnStatusClock"]');
-    if (clock) status.insertBefore(wrap, clock);
-    else status.appendChild(wrap);
+    status.appendChild(wrap);
   }
   function refresh(ctx) {
     var snap = listSnapshot(ctx);
-    var idByTitle = {};
-    if (snap && snap.byId) {
-      for (var i = 0; i < snap.ids.length; i++) {
-        var s = snap.byId[snap.ids[i]];
-        if (s && s.displayTitle) idByTitle[norm(s.displayTitle)] = s.id;
-      }
-    }
+    var idByTitle = buildIdByTitle(snap);
     var runningOf = null;
     if (ctx.sessions && typeof ctx.sessions.get === "function") {
       runningOf = function(id) {
         var sess = ctx.sessions.get(id);
         if (sess) return !!sess.running;
-        var s2 = snap && snap.byId ? snap.byId[id] : null;
-        return !!(s2 && s2.running);
+        var s = snap && snap.byId ? snap.byId[id] : null;
+        return !!(s && s.running);
       };
     }
     var active = buildActiveSet(snap, runningOf);
@@ -700,6 +995,7 @@
     decorateSidebar(snap, idByTitle, active);
     decorateProjects();
     decorateHeader(ctx, snap);
+    flushAvatarMap();
     decorateTurnStatus();
     applyPreviews(ctx, snap, idByTitle, running);
   }
@@ -715,7 +1011,6 @@
       var SettingsPanel = makeSettingsPanel(react);
       function apply(ctx) {
         ctx.provide("chatlab", singleton);
-        var skin = readSkin();
         SettingsPanel.setCtx(ctx);
         ctx.slots.inject("settings.section", function() {
           return ctx.slots.register(
@@ -723,53 +1018,77 @@
             SettingsPanel
           );
         });
-        ctx.effect(function() {
-          return function() {
+        function clearDecorations(removeStyle) {
+          disposePreviews(ctx);
+          if (removeStyle) {
             var s = document.getElementById(STYLE_ID);
             if (s && s.parentNode) s.parentNode.removeChild(s);
-            var nodes = document.querySelectorAll(".cl-avatar, .cl-preview, .cl-unread-dot, .cl-running-dot, .cl-project-icon, .cl-brand-skin, .cl-typing, .cl-turn-typing");
-            for (var i = 0; i < nodes.length; i++) {
-              var n = nodes[i];
-              if (n.parentNode) n.parentNode.removeChild(n);
-            }
-            var unread = document.querySelectorAll(".cl-unread");
-            for (var j = 0; j < unread.length; j++) unread[j].classList.remove("cl-unread");
-            document.documentElement.removeAttribute("data-chatlab-skin");
-            document.documentElement.removeAttribute("data-chatlab-theme");
+          }
+          var nodes = document.querySelectorAll(".cl-avatar, .cl-preview, .cl-unread-dot, .cl-running-dot, .cl-project-icon, .cl-brand-skin, .cl-typing, .cl-turn-typing");
+          for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            if (n.parentNode) n.parentNode.removeChild(n);
+          }
+          var unread = document.querySelectorAll(".cl-unread");
+          for (var j = 0; j < unread.length; j++) unread[j].classList.remove("cl-unread");
+          var rows = document.querySelectorAll("[data-cl-session-id], [data-cl-session-title]");
+          for (var k = 0; k < rows.length; k++) {
+            rows[k].removeAttribute("data-cl-session-id");
+            rows[k].removeAttribute("data-cl-session-title");
+          }
+          document.documentElement.removeAttribute("data-chatlab-skin");
+          document.documentElement.removeAttribute("data-chatlab-theme");
+        }
+        ctx.effect(function() {
+          return function() {
+            clearDecorations(true);
           };
         });
-        if (skin === "none") {
-          applyHtml("none", "light");
-          rebuildCss("none", "light");
-          return;
+        var appliedSkin = null;
+        function syncSkin(force) {
+          var skin = readSkin();
+          if (force || skin !== appliedSkin) {
+            var wasEnabled = appliedSkin && appliedSkin !== "none";
+            applyHtml(skin, "light");
+            rebuildCss(skin, "light");
+            appliedSkin = skin;
+            if (wasEnabled && skin === "none") clearDecorations(false);
+          }
+          return skin !== "none";
         }
-        applyHtml(skin, "light");
-        rebuildCss(skin, "light");
+        function refreshIfEnabled(forceSkinSync2) {
+          if (!syncSkin(forceSkinSync2)) return;
+          refresh(ctx);
+        }
         var refreshTimer = null;
-        function scheduleRefresh() {
+        var forceSkinSync = false;
+        function scheduleRefresh(force) {
+          if (force) forceSkinSync = true;
           if (refreshTimer) return;
           refreshTimer = setTimeout(function() {
             refreshTimer = null;
-            var cur = readSkin();
-            rebuildCss(cur, "light");
-            refresh(ctx);
+            var force2 = forceSkinSync;
+            forceSkinSync = false;
+            refreshIfEnabled(force2);
           }, 300);
         }
         var unsubscribeRegistry = singleton.subscribe(function() {
-          scheduleRefresh();
+          scheduleRefresh(true);
         });
-        refresh(ctx);
+        refreshIfEnabled();
         var unsubscribe = null;
         if (ctx.sessions && ctx.sessions.list && typeof ctx.sessions.list.subscribe === "function") {
           try {
-            unsubscribe = ctx.sessions.list.subscribe(scheduleRefresh);
+            unsubscribe = ctx.sessions.list.subscribe(function() {
+              scheduleRefresh(false);
+            });
           } catch (e) {
           }
         }
         var fallback = setInterval(function() {
           var rows = document.querySelectorAll('[class*="sessionRow"]');
           if (rows.length === 0) return;
-          refresh(ctx);
+          refreshIfEnabled();
         }, 1500);
         ctx.effect(function() {
           return function() {

@@ -45,10 +45,26 @@ export function buildCss(skin, theme) {
   var def = skinRegistry.get(skin);
   if (!def) return blocks.join("\n");
   blocks.push(COMMON_CSS);
-  // 深色由 DSH 的 ctx.theme 服务管理 token，皮肤不再按 theme 覆盖 token。
-  // 皮肤专属的"品牌蓝"已在 def.css 里硬编码(#1456F0)，不依赖 token 解析。
+  // 皮肤定义的 token 覆盖 DSH alias。明色写在 html，深色跟随 DSH 自己写到 body
+  // 的 data-ds-dark-theme 标记；后者在 body 上的值会覆盖从 html 继承下来的明色值。
+  var light = tokenCss(def.tokens && def.tokens.light);
+  if (light) blocks.push('html[data-chatlab-skin] { ' + light + ' }');
+  var dark = tokenCss(def.tokens && def.tokens.dark);
+  if (dark) blocks.push('html[data-chatlab-skin] body[data-ds-dark-theme] { ' + dark + ' }');
   if (def.css) blocks.push(def.css);
   return blocks.join("\n");
+}
+
+function tokenCss(tokens) {
+  if (!tokens || typeof tokens !== "object") return "";
+  var keys = Object.keys(tokens);
+  var parts = [];
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+    var value = tokens[key];
+    if (typeof value === "string" && value) parts.push("--dsw-alias-" + key + ": " + value + ";");
+  }
+  return parts.join(" ");
 }
 
 export function makeRebuildCss() {

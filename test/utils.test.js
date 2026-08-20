@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { norm, hashHue, resolveSidebarSeed, buildActiveSet, buildRunningSet, clipPreview, assignRowIds, unreadDecision } from "../packages/core/src/utils.js";
+import { norm, hashHue, resolveSidebarSeed, buildActiveSet, buildRunningSet, clipPreview, assignRowIds, unreadDecision, buildIdByTitle } from "../packages/core/src/utils.js";
 
 describe("norm", () => {
   it("去除首尾空白并把连续空白折叠为单个空格", () => {
@@ -266,5 +266,26 @@ describe("assignRowIds", () => {
 
   it("空数组安全返回空", () => {
     expect(assignRowIds([], "s-a")).toEqual([]);
+  });
+});
+
+describe("buildIdByTitle", () => {
+  it("使用 ids 数组的规范 id，不依赖 byId 条目重复携带 id", () => {
+    const map = buildIdByTitle({
+      ids: ["session-a"],
+      byId: { "session-a": { displayTitle: "  项目 A  " } }
+    });
+    expect(map).toEqual({ "项目 A": "session-a" });
+  });
+
+  it("重复标题不做不安全的 title→id 反查", () => {
+    const map = buildIdByTitle({
+      ids: ["a", "b"],
+      byId: {
+        a: { displayTitle: "同名项目" },
+        b: { displayTitle: "同名项目" }
+      }
+    });
+    expect(map).toEqual({});
   });
 });

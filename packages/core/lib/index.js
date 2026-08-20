@@ -29,7 +29,8 @@ const inject = ["sessions"];
 async function readEvents(ctx, id) {
   const live = ctx.sessions.get(id);
   if (live && Array.isArray(live.events)) return live.events;
-  const query = ctx.get("sessionQuery");
+  let query = null;
+  try { query = ctx.get("sessionQuery"); } catch (e) {}
   if (query && typeof query.readSession === "function") {
     try {
       const snap = await query.readSession(id);
@@ -65,6 +66,11 @@ async function handler(ctx, endpoint, payload, cache) {
       // cold 会话：读磁盘(慢)，但日志不可变，缓存永久有效，安全。
       if (cache.has(id)) { out[id] = cache.get(id); return; }
       const events = await readEvents(ctx, id);
+      if (events === null) {
+        // 后端暂时不可用时不要伪造“空会话”结果；client 会保留上一次确认的预览/未读状态。
+        out[id] = { unavailable: true };
+        return;
+      }
       const info = lastActivity(events);
       cache.set(id, info);
       out[id] = info;
