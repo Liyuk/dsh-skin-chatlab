@@ -114,15 +114,23 @@
     'html[data-chatlab-skin="feishu"] [class*="searchInput"]::placeholder { color: var(--dsw-alias-label-tertiary); }',
     'html[data-chatlab-skin="feishu"] [class*="searchButton"], html[data-chatlab-skin="feishu"] [class*="clearButton"] { color: var(--dsw-alias-label-tertiary); background: transparent; }',
     // 聊天：消息气泡
-    // 真实结构：用户消息 = [data-chat-flow-kind="user"] → .gdEzaW_bubble(原生已右对齐)
-    //           assistant = [data-chat-flow-kind="assistant-step"] → .Sxvs8a_body(通栏正文)
-    // 飞书：用户气泡蓝色白字 + 已读✓；assistant 保持通栏正文(飞书 bot 回复不套气泡)。
-    'html[data-chatlab-skin="feishu"] [class*="gdEzaW_bubble"] { background: #1456F0 !important; color: #FFFFFF !important; border-radius: 18px 4px 18px 18px; padding: 9px 14px; font-size: 15px; line-height: 22px; box-shadow: 0 1px 2px rgba(0,0,0,.08); }',
-    'html[data-chatlab-skin="feishu"] [class*="gdEzaW_userStack"] { max-width: min(480px, 78%); }',
+    // 真实结构(MessageItem.tsx)：用户消息/待发送 steering 都走 UserStyleBubble ->
+    //   .userRow > .userStack > .bubble；assistant 走 AssistantMarkdown ->
+    //   [data-chat-flow-kind="assistant-step"] 内的 .root > .body(通栏正文)。
+    // 不用 CSS Modules 编译出的哈希前缀(如之前的 gdEzaW_bubble/Sxvs8a_body)：
+    // 哈希是按构建内容算的，跟 DSH 版本号无关，换一次构建就可能对不上、悄悄失效
+    // 且不报错。改用"语义类名(无哈希) + 结构限定"：
+    //   - userStack/userRow 在全站唯一(只有 MessageItem.module.css 用)，可以
+    //     直接当限定词，不用再靠哈希消歧义。
+    //   - body 全站有十几个模块在用，必须靠 [data-chat-flow-kind="assistant-step"]
+    //     这个稳定的 data 属性(ChatNodeSeat.tsx 写在 flowItem 上)限定范围，
+    //     否则会误伤 ApprovalPanel/TodoPanel/DetailsPanel 等无关的 .body。
+    'html[data-chatlab-skin="feishu"] [class*="userStack"] [class*="bubble"] { background: #1456F0 !important; color: #FFFFFF !important; border-radius: 18px 4px 18px 18px; padding: 9px 14px; font-size: 15px; line-height: 22px; box-shadow: 0 1px 2px rgba(0,0,0,.08); }',
+    'html[data-chatlab-skin="feishu"] [class*="userStack"] { max-width: min(480px, 78%); }',
     // 用户气泡右下角"已读✓"(飞书私聊)
-    'html[data-chatlab-skin="feishu"] [class*="gdEzaW_userRow"] [class*="gdEzaW_bubble"]::after { content: "\u5DF2\u8BFB"; margin-left: 8px; font-size: 11px; color: rgba(255,255,255,.7); }',
+    'html[data-chatlab-skin="feishu"] [class*="userRow"] [class*="bubble"]::after { content: "\u5DF2\u8BFB"; margin-left: 8px; font-size: 11px; color: rgba(255,255,255,.7); }',
     // assistant 正文：通栏，飞书 bot 回复风格
-    'html[data-chatlab-skin="feishu"] [class*="Sxvs8a_body"] { font-size: 15px; line-height: 24px; }',
+    'html[data-chatlab-skin="feishu"] [data-chat-flow-kind="assistant-step"] [class*="body"] { font-size: 15px; line-height: 24px; }',
     // 输入框(composer)
     'html[data-chatlab-skin="feishu"] [data-composer-card] { border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-base); box-shadow: 0 1px 4px rgba(0,0,0,.05); }',
     // 聊天：顶栏
