@@ -90,7 +90,7 @@ export function makeSettingsPanel(react) {
     return react.createElement("div", { className: "cl-settings" },
       react.createElement("div", { className: "cl-settings-head" },
         react.createElement("div", { className: "cl-settings-title" }, "ChatLab 皮肤"),
-        react.createElement("div", { className: "cl-settings-sub" }, "可扩展聊天皮肤：飞书首发，其余待做")),
+        react.createElement("div", { className: "cl-settings-sub" }, "六套独立视觉皮肤，按需安装与切换")),
       notice ? react.createElement("div", { className: "cl-notice" }, notice) : null,
       react.createElement("div", { className: "cl-chips" },
         react.createElement(SkinChip, { id: "none", name: "无皮肤", active: skin === "none", onPick: commitSkin }),

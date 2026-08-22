@@ -110,7 +110,12 @@ export function decorateSidebar(snap, idByTitle, active) {
     // 才回退 resolveSidebarSeed 的 title 兜底。seed/id 写入持久化映射表，保证
     // 任何位置按同一 id 拿到同一 URL。
     var seed = id ? id : resolveSidebarSeed(null, info.title, current, currentDisplay);
-    var src = id ? rememberAvatar(id, id, null, true) : avatarUrl(seed);
+    // blank 行第一次只能按标题生成临时头像；点击后 selected 信号补齐真实 id 时，
+    // 迁移当前 img URL 到 id 映射，避免用户点击一次头像就突然换脸。
+    var carrySrc = !previousId && av && av.tagName === "IMG"
+      ? (av.getAttribute("src") || av.src || null)
+      : null;
+    var src = id ? rememberAvatar(id, id, carrySrc, true) : avatarUrl(seed);
     var nextAvatar = updateAvatar(av, seed, src);
     if (!av) {
       // 只 append 到行尾，不 insertBefore 到 React 节点前(避免干扰 React reconcile)。
@@ -169,7 +174,10 @@ export function decorateProjects() {
     }
     // React 可复用项目行；每轮同步文字和颜色，避免保留上一项目的图标。
     block.textContent = initial;
-    block.style.background = "hsl(" + hue + ", 70%, 55%)";
+    // 只把稳定色相交给皮肤，明暗度/饱和度由各皮肤 CSS 决定；避免 inline background
+    // 把 Slack/企微等皮肤自己的项目图标配色覆盖掉。
+    block.style.setProperty("--cl-project-hue", String(hue));
+    block.style.background = "";
   }
 }
 

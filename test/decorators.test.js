@@ -529,4 +529,27 @@ describe("sidebar identity reuse", () => {
     expect(row.querySelector(".cl-unread-dot")).toBeNull();
     expect(row.classList.contains("cl-unread")).toBe(false);
   });
+
+  it("blank row becomes selected with a session id时沿用首次头像，不因点击换头像", () => {
+    const row = createRow("新会话", false);
+    const avatar = createNode("img");
+    avatar.src = "https://avatar.example/temporary";
+    avatar.getAttribute = function (name) {
+      return name === "src" ? this.src : null;
+    };
+    row.appendChild(avatar);
+    globalThis.document = {
+      createElement: createNode,
+      querySelectorAll(selector) { return selector.includes("sessionRow") ? [row] : []; }
+    };
+
+    const snap = { current: "session-clicked", ids: ["session-clicked"], byId: { "session-clicked": { displayTitle: "真实会话" } } };
+    decorateSidebar(snap, {}, {});
+    const firstSrc = row.querySelector(".cl-avatar").src;
+
+    row.className = "sessionRow selected";
+    decorateSidebar(snap, {}, {});
+
+    expect(row.querySelector(".cl-avatar").src).toBe(firstSrc);
+  });
 });

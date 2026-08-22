@@ -56,6 +56,20 @@ describe("skin registry contract", () => {
     expect(css).toContain("html[data-chatlab-skin] { --dsw-alias-brand-primary: #123456;");
     expect(css).toContain("body[data-ds-dark-theme] { --dsw-alias-brand-primary: #abcdef;");
   });
+
+  it("只注册部分皮肤时，已注册皮肤仍可独立生成完整样式", () => {
+    const id = "partial-load-slack";
+    skinRegistry.registerSkin({
+      id,
+      tokens: { light: { "brand-primary": "#611f69" }, dark: { "brand-primary": "#c98bd7" } },
+      css: 'html[data-chatlab-skin="partial-load-slack"] .composer { color: #611f69; }'
+    });
+
+    const css = buildCss(id, "light");
+    expect(css).toContain(".composer { color: #611f69; }");
+    expect(css).toContain(".cl-brand-skin");
+    expect(buildCss("skin-not-installed", "light")).not.toContain(".cl-brand-skin");
+  });
 });
 
 describe("brand decoration", () => {
@@ -248,6 +262,23 @@ describe("skin preference resolution", () => {
 
     isolatedRegistry.registerSkin({ id: "feishu" });
     expect(readSkin()).toBe("feishu");
+  });
+
+  it("uses aggregate registration order for the first ready fallback", async () => {
+    const { readSkin } = await import("../packages/core/src/prefs.js");
+    const { skinRegistry: isolatedRegistry } = await import("../packages/core/src/registry.js");
+    isolatedRegistry.registerSkin({ id: "slack", ready: true });
+    isolatedRegistry.registerSkin({ id: "dingtalk", ready: true });
+    isolatedRegistry.registerSkin({ id: "feishu", ready: true });
+    expect(readSkin()).toBe("feishu");
+  });
+
+  it("selected skin is absent but another skin is installed时回退到已安装皮肤", async () => {
+    globalThis.localStorage.setItem("dsh-skin-chatlab.skin", "feishu");
+    const { readSkin } = await import("../packages/core/src/prefs.js");
+    const { skinRegistry: isolatedRegistry } = await import("../packages/core/src/registry.js");
+    isolatedRegistry.registerSkin({ id: "slack", ready: true });
+    expect(readSkin()).toBe("slack");
   });
 });
 

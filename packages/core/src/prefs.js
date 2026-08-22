@@ -22,6 +22,10 @@ export function readSkin() {
 
 function firstReadySkin() {
   var skins = skinRegistry.list();
+  // DSH may normalize bundle order (for example, alphabetically), so the
+  // aggregate's intended Feishu default must not depend on registration timing.
+  var feishu = skinRegistry.get("feishu");
+  if (feishu && feishu.ready) return "feishu";
   for (var i = 0; i < skins.length; i++) {
     if (skins[i].ready) return skins[i].id;
   }

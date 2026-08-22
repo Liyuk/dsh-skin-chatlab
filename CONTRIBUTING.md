@@ -34,11 +34,17 @@ packages/
       index.js         host 端（预览/未读 RPC）
   skin-feishu/          飞书皮肤包 @liyuk/dsh-skin-feishu
     src/
-      feishu.js        飞书 token + CSS（纯数据）
-      index.js         皮肤插件入口(注入 chatlab 服务注册自己)
+      feishu.js         飞书 token + CSS（纯数据）
+      index.js          皮肤插件入口（注入 chatlab 服务注册自己）
     lib/
-      client.js        打包产物
-      index.js         host 端(no-op)
+      client.js         打包产物
+      index.js          host 端（no-op）
+  skin-slack/           Slack 风格皮肤包 @liyuk/dsh-skin-slack
+  skin-wecom/           企业微信风格皮肤包 @liyuk/dsh-skin-wecom
+  skin-dingtalk/        钉钉风格皮肤包 @liyuk/dsh-skin-dingtalk
+  skin-telegram/        Telegram 风格皮肤包 @liyuk/dsh-skin-telegram
+  skin-whatsapp/        WhatsApp 风格皮肤包 @liyuk/dsh-skin-whatsapp
+  skin-shared/          私有 build-time token mapper（仅 src/tokens.js，不发布）
   chatlab/              聚合包 @liyuk/dsh-skin-chatlab(仅依赖声明)
 scripts/
   build.mjs            esbuild 多包打包
@@ -84,7 +90,9 @@ npm test             # 跑单测
 
 ## 加一套新皮肤
 
-**新建一个皮肤包**（推荐）——复制 `packages/skin-feishu` 为 `packages/skin-xxx`，改 `package.json` name 和 `src/` 里的皮肤数据，再 `ctx.chatlab.registerSkin({ id, name, desc, ready, tokens, css })` 注册。
+**新建一个皮肤包**（推荐）——按 `packages/skin-feishu` 的包结构新建 `packages/skin-<id>`，为每个皮肤保留独立的 `src/<id>.js`、`src/index.js`、host no-op、Cordis patch、README 和 manifest；不要依赖 core 源码，也不要把私有 `skin-shared` 声明成运行时依赖。
+
+每个 client entry 必须通过 `inject: ["chatlab"]` 注册一个唯一的 `{ id, name, desc, ready, tokens: { light, dark }, css, brand }` 定义；CSS 必须限定到自己的 `html[data-chatlab-skin="<id>"]`，并只使用稳定语义选择器。
 
 关键：皮肤通过 `inject: ["chatlab"]` 拿到 core 的服务，**不 import core 的模块**（两个独立 bundle，运行时靠 cordis 服务通信）。
 

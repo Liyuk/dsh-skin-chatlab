@@ -1,0 +1,4 @@
+# ChatLab WhatsApp-style skin bundle
+- insert:
+    - id: chatlab-skin-whatsapp
+      name: '@liyuk/dsh-skin-whatsapp'

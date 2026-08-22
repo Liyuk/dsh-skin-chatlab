@@ -17,5 +17,30 @@ export const targets = [
     entry: "packages/skin-feishu/src/index.js",
     outfile: "packages/skin-feishu/lib/client.js",
     external: [] // skin-feishu 纯 token + CSS，无 react 依赖
+  },
+  {
+    entry: "packages/skin-slack/src/index.js",
+    outfile: "packages/skin-slack/lib/client.js",
+    external: []
+  },
+  {
+    entry: "packages/skin-wecom/src/index.js",
+    outfile: "packages/skin-wecom/lib/client.js",
+    external: []
+  },
+  {
+    entry: "packages/skin-dingtalk/src/index.js",
+    outfile: "packages/skin-dingtalk/lib/client.js",
+    external: []
+  },
+  {
+    entry: "packages/skin-telegram/src/index.js",
+    outfile: "packages/skin-telegram/lib/client.js",
+    external: []
+  },
+  {
+    entry: "packages/skin-whatsapp/src/index.js",
+    outfile: "packages/skin-whatsapp/lib/client.js",
+    external: []
   }
 ];

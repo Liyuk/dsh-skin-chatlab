@@ -1,0 +1,16 @@
+# ChatLab aggregate bundle: load the core and every published skin together.
+- insert:
+    - id: chatlab-core
+      name: '@liyuk/dsh-skin-chatlab-core'
+    - id: chatlab-skin-feishu
+      name: '@liyuk/dsh-skin-feishu'
+    - id: chatlab-skin-slack
+      name: '@liyuk/dsh-skin-slack'
+    - id: chatlab-skin-wecom
+      name: '@liyuk/dsh-skin-wecom'
+    - id: chatlab-skin-dingtalk
+      name: '@liyuk/dsh-skin-dingtalk'
+    - id: chatlab-skin-telegram
+      name: '@liyuk/dsh-skin-telegram'
+    - id: chatlab-skin-whatsapp
+      name: '@liyuk/dsh-skin-whatsapp'

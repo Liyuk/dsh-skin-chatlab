@@ -27,7 +27,7 @@ git push origin main
 
 ## 发布到 npm（monorepo 多包）
 
-发布由 GitHub Actions 自动完成，**打 tag 即发布全部包**（core → skin-feishu → chatlab）：
+发布由 GitHub Actions 自动完成，**打 tag 即发布全部包**（core → 六套皮肤 → chatlab 聚合包）：
 
 ```sh
 git checkout main
@@ -45,7 +45,7 @@ git push origin main --follow-tags
 推 tag 后，`.github/workflows/publish.yml` 会：
 1. `npm install`
 2. `npm run build`（esbuild 多包打包）
-3. `node scripts/publish.mjs`（按依赖顺序发布 core → skin-feishu → chatlab）
+3. `node scripts/publish.mjs`（按依赖顺序发布 core → feishu → slack → wecom → dingtalk → telegram → whatsapp → chatlab）
 
 也可手动本地发布：
 
@@ -56,13 +56,18 @@ node scripts/publish.mjs --dry-run  # 只检查不发布
 
 ## 版本号约定
 
-三个包独立版本号，但**建议保持同步**（改一个就一起 bump）：
+八个包独立版本号；新增皮肤可从 `1.0.0` 起步，aggregate 版本随依赖集合变化递增：
 
 | 包 | 当前 |
 |---|---|
-| `@liyuk/dsh-skin-chatlab-core` | 1.0.2 |
+| `@liyuk/dsh-skin-chatlab-core` | 1.0.3 |
 | `@liyuk/dsh-skin-feishu` | 1.0.2 |
-| `@liyuk/dsh-skin-chatlab` | 2.0.2 |
+| `@liyuk/dsh-skin-slack` | 1.0.0 |
+| `@liyuk/dsh-skin-wecom` | 1.0.0 |
+| `@liyuk/dsh-skin-dingtalk` | 1.0.0 |
+| `@liyuk/dsh-skin-telegram` | 1.0.0 |
+| `@liyuk/dsh-skin-whatsapp` | 1.0.0 |
+| `@liyuk/dsh-skin-chatlab` | 2.1.0 |
 
 ## 一次性配置（仓库 owner）
 

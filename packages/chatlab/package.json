@@ -1,17 +1,28 @@
 {
   "name": "@liyuk/dsh-skin-chatlab",
-  "version": "2.0.2",
-  "description": "ChatLab 聚合包：一键安装基座 + 飞书皮肤。安装本包会通过 dependencies 拉入 core 和 skin-feishu；在 profile 的 bundles 里加入 @liyuk/dsh-skin-chatlab-core 和 @liyuk/dsh-skin-feishu 即可。如需更多皮肤，单独安装 @liyuk/dsh-skin-<name>。",
+  "version": "2.1.1",
+  "description": "ChatLab 聚合包：一键安装基座 + 飞书、Slack、企业微信、钉钉、Telegram、WhatsApp 六套独立皮肤包。",
   "license": "MIT",
   "type": "module",
   "files": [
-    "README.md"
+    "README.md",
+    "cordis.patch.yml"
   ],
   "engines": {
     "node": ">=20"
   },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
   "dependencies": {
-    "@liyuk/dsh-skin-chatlab-core": "^1.0.2",
-    "@liyuk/dsh-skin-feishu": "^1.0.2"
+    "@liyuk/dsh-skin-chatlab-core": "^1.0.4",
+    "@liyuk/dsh-skin-feishu": "^1.0.3",
+    "@liyuk/dsh-skin-slack": "^1.0.1",
+    "@liyuk/dsh-skin-wecom": "^1.0.1",
+    "@liyuk/dsh-skin-dingtalk": "^1.0.1",
+    "@liyuk/dsh-skin-telegram": "^1.0.1",
+    "@liyuk/dsh-skin-whatsapp": "^1.0.1"
   }
 }

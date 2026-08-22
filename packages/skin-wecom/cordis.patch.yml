@@ -1,0 +1,4 @@
+# ChatLab WeCom-style skin bundle
+- insert:
+    - id: chatlab-skin-wecom
+      name: '@liyuk/dsh-skin-wecom'

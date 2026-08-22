@@ -4,6 +4,7 @@
 // 飞书官方设计系统(Lark design language)校准后的色值：
 //   品牌蓝 #1456F0(不是抖音系 #3370FF)、文字 #1F2329/#646A73/#8F959E、
 //   背景 #F5F6F7 / #EFF0F1、边框 #DEE0E3 / #D0D3D6、气泡背景 #F5F6F7。
+import { makeComposerCss } from "../../skin-shared/src/composer.js";
 export const FEISHU_BRAND_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="6" fill="#1456F0"></rect><path d="M7 6.5h10v3h-6.7v2.4h5.8v2.8h-5.8v3.8H7z" fill="#fff"></path></svg>';
 
 export const DEFAULT_TOKENS_LIGHT = {
@@ -49,6 +50,7 @@ export const FEISHU_CSS = [
   // ===================== 左侧：项目组(Meego 风) =====================
   'html[data-chatlab-skin="feishu"] [class*="projectRow"] { margin: 1px 8px; border-radius: 8px; transition: background .15s ease; }',
   'html[data-chatlab-skin="feishu"] [class*="projectRow"]:hover { background: var(--dsw-alias-interactive-bg-hover); }',
+  'html[data-chatlab-skin="feishu"] [class*="projectRow"][class*="selected"], html[data-chatlab-skin="feishu"] [class*="projectRow"][class*="active"] { background: var(--dsw-alias-interactive-bg-hover-accent); box-shadow: inset 2px 0 #1456F0; }',
   'html[data-chatlab-skin="feishu"] [class*="projectText"] { font-size: 13px; font-weight: 600; color: var(--dsw-alias-label-primary); }',
   // folder 图标用 currentColor，但依赖 var(--dsw-alias-brand-primary) 在 sidebar 作用域里
   // 解析不稳定(实测不生效)，和气泡一样硬编码飞书蓝。
@@ -60,11 +62,11 @@ export const FEISHU_CSS = [
   // 用 CSS Grid 实现：头像跨两行垂直居中，标题/时间在第一行，预览在第二行。
   // grid 不移动任何 React 节点(避免 reconcile 崩溃)，纯布局重排。
   // 列：头像 | 标题(自适应) | 时间 | 三点；行：标题行 / 预览行。
-  'html[data-chatlab-skin="feishu"] [class*="sessionRow"] { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto auto; grid-template-rows: 20px 16px; column-gap: 8px; row-gap: 3px; align-items: center; height: auto !important; min-height: 52px; padding: 6px 10px; margin: 1px 8px; border-radius: 8px; box-sizing: border-box; }',
+  'html[data-chatlab-skin="feishu"] [class*="sessionRow"] { --cl-session-avatar-col: 32px; --cl-session-title-row: 20px; --cl-session-preview-row: 16px; --cl-session-column-gap: 8px; --cl-session-row-gap: 3px; height: auto !important; min-height: 52px; padding: 6px 10px; margin: 1px 8px; border-radius: 8px; }',
   'html[data-chatlab-skin="feishu"] [class*="sessionRow"]:hover { background: var(--dsw-alias-interactive-bg-hover); }',
-  'html[data-chatlab-skin="feishu"] [class*="sessionRow"][class*="selected"] { background: var(--dsw-alias-interactive-bg-hover-accent); }',
+  'html[data-chatlab-skin="feishu"] [class*="sessionRow"][class*="selected"], html[data-chatlab-skin="feishu"] [class*="sessionRow"][class*="active"] { background: var(--dsw-alias-interactive-bg-hover-accent); }',
   // 标题：第一行第 2 列，占满剩余宽度
-  'html[data-chatlab-skin="feishu"] [class*="sessionRow"] [class*="title"] { grid-column: 2; grid-row: 1; min-width: 0; margin: 0; font-size: 14px; font-weight: 500; line-height: 20px; color: var(--dsw-alias-label-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+  'html[data-chatlab-skin="feishu"] [class*="sessionRow"] [class*="title"] { margin: 0; font-size: 14px; font-weight: 500; line-height: 20px; color: var(--dsw-alias-label-primary); }',
   // 时间：第一行第 3 列
   'html[data-chatlab-skin="feishu"] [class*="sessionRow"] [class*="time"] { grid-column: 3; grid-row: 1; font-size: 11px; line-height: 20px; color: var(--dsw-alias-label-tertiary); font-variant-numeric: tabular-nums; }',
   // 三点操作：第一行第 4 列(hover 才显示，默认 display:none 不占格)
@@ -75,7 +77,7 @@ export const FEISHU_CSS = [
   // sessionRow 需要相对定位供红点锚定
   'html[data-chatlab-skin="feishu"] [class*="sessionRow"] { position: relative; }',
   // 预览：第二行，从第 2 列跨到第 4 列(对齐标题列)
-  'html[data-chatlab-skin="feishu"] .cl-preview { grid-column: 2 / span 3; grid-row: 2; min-width: 0; margin: 0; font-size: 12px; line-height: 16px; color: var(--dsw-alias-label-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+  'html[data-chatlab-skin="feishu"] .cl-preview { margin: 0; font-size: 12px; line-height: 16px; color: var(--dsw-alias-label-tertiary); }',
   // 搜索框：只碰展开态
   'html[data-chatlab-skin="feishu"] [class*="searchExpanded"] { background: var(--dsw-alias-bg-layer-2); border-color: var(--dsw-alias-border-l2); border-radius: 10px; gap: 4px; }',
   'html[data-chatlab-skin="feishu"] [class*="searchExpanded"]:hover { border-color: var(--dsw-alias-border-l3); }',
@@ -100,8 +102,8 @@ export const FEISHU_CSS = [
   'html[data-chatlab-skin="feishu"] [class*="userRow"] [class*="bubble"]::after { content: "已读"; margin-left: 8px; font-size: 11px; color: rgba(255,255,255,.7); }',
   // assistant 正文：通栏，飞书 bot 回复风格
   'html[data-chatlab-skin="feishu"] [data-chat-flow-kind="assistant-step"] [class*="body"] { font-size: 15px; line-height: 24px; }',
-  // 输入框(composer)
-  'html[data-chatlab-skin="feishu"] [data-composer-card] { border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-base); box-shadow: 0 1px 4px rgba(0,0,0,.05); }',
+  // 输入框(composer)：公共结构统一，飞书保留平面编辑器和轻微上浮 hover。
+  makeComposerCss({ id: "feishu", cardRadius: "8px", toolbarRadius: "6px", sendRadius: "6px", motionName: "cl-feishu-composer-focus", focusDuration: ".18s", editorExtra: " resize: none; line-height: 22px;", sendTransition: "background .15s ease, box-shadow .15s ease, transform .15s ease;", sendHover: " box-shadow: 0 2px 6px rgba(20,86,240,.22); transform: translateY(-1px);", motionFrom: "box-shadow: 0 0 0 0 rgba(20,86,240,0);", motionTo: "box-shadow: 0 0 0 2px rgba(20,86,240,.14);" }),
   // 聊天：顶栏
   'html[data-chatlab-skin="feishu"] [class*="titleCluster"] [class*="crumbCurrent"] { font-size: 15px; font-weight: 600; color: var(--dsw-alias-label-primary); }',
   'html[data-chatlab-skin="feishu"] [class*="tabs"] { gap: 28px; }',
@@ -109,17 +111,15 @@ export const FEISHU_CSS = [
   'html[data-chatlab-skin="feishu"] [class*="tabActive"] { color: #1456F0 !important; }',
   'html[data-chatlab-skin="feishu"] [class*="tabActive"]::after { background: #1456F0 !important; }',
   // 头像：grid 第 1 列、跨两行，垂直居中。
-  'html[data-chatlab-skin="feishu"] .cl-avatar { width: 32px; height: 32px; border-radius: 50%; grid-column: 1; grid-row: 1 / span 2; justify-self: start; align-self: center; }',
-  // 会话行里那个 16px 空状态槽(slot)在飞书风格里不需要，display:none 彻底移除。
-  'html[data-chatlab-skin="feishu"] [class*="sessionRow"] [class*="slot"] { display: none !important; }',
+  'html[data-chatlab-skin="feishu"] .cl-avatar { width: 32px; height: 32px; border-radius: 50%; }',
   // 头像右下角"进行中"呼吸圆点：会话正在跑任务时出现的小蓝点。视觉上仍与未读红点同一
   // 套语言(同款 2px 背景色细光圈描边、无光晕无粗 border)，但"进行中"是需要主动留意
   // 的状态 → 尺寸比红点(8px)略大到 10px，且呼吸只轻微缩放、不开合透明度(保持常亮)，
   // 避免像 8px 素点那样淡到看不见。颜色用品牌蓝，呼吸动效是唯一"进行中"区分。
   'html[data-chatlab-skin="feishu"] .cl-running-dot { position: absolute; bottom: 5px; left: 38px; width: 10px; height: 10px; border-radius: 50%; background: #1456F0; box-shadow: 0 0 0 2px var(--dsw-alias-bg-base); z-index: 1; animation: cl-running-breathe 1.6s ease-in-out infinite; }',
   '@keyframes cl-running-breathe { 0%, 100% { transform: scale(.86); } 50% { transform: scale(1.08); } }',
-  // 顶部头像：order:-1 排到面包屑前，margin-left 撑开与面包屑间距(用户调试值)。
-  'html[data-chatlab-skin="feishu"] .cl-header-avatar { width: 28px; height: 28px; border-radius: 50%; margin: 0 0 0 8px; flex: none; align-self: center; order: -1; }',
+  // 顶部头像只保留飞书自己的尺寸/形状；基础排位由 core 的 COMMON_CSS 统一处理。
+  'html[data-chatlab-skin="feishu"] .cl-header-avatar { width: 28px; height: 28px; border-radius: 50%; }',
   // 项目组彩色方块图标(Meego 风)。原文件夹 SVG 用 CSS 隐藏(不删节点)，只显示叠加的彩色方块。
   'html[data-chatlab-skin="feishu"] [class*="projectRow"] [class*="folder"] > svg { display: none; }',
   'html[data-chatlab-skin="feishu"] .cl-project-icon { width: 16px; height: 16px; border-radius: 4px; flex: none; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #FFFFFF; line-height: 1; }',

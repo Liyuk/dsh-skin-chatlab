@@ -1,0 +1,4 @@
+# ChatLab Slack-style skin bundle
+- insert:
+    - id: chatlab-skin-slack
+      name: '@liyuk/dsh-skin-slack'

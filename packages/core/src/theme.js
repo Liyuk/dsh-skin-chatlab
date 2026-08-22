@@ -32,7 +32,20 @@ export const UI_CSS = [
 
 export const COMMON_CSS = [
   'html[data-chatlab-skin] { --dsw-font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", "Segoe UI", sans-serif; }',
+  'html[data-chatlab-skin] [class*="brand"] { display: inline-flex; align-items: center; gap: 8px; }',
+  'html[data-chatlab-skin] .cl-brand-skin { display: inline-flex; align-items: center; gap: 6px; height: 24px; box-sizing: border-box; padding: 0 8px 0 4px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 7px; color: var(--dsw-alias-brand-primary); background: var(--dsw-alias-interactive-bg-hover-accent); font-size: 12px; font-weight: 600; line-height: 1; letter-spacing: .01em; white-space: nowrap; }',
+  'html[data-chatlab-skin] .cl-brand-mark { display: inline-flex; width: 18px; height: 18px; flex: none; color: var(--dsw-alias-brand-primary); }',
+  'html[data-chatlab-skin] .cl-brand-mark img { display: block; width: 18px; height: 18px; }',
+  'html[data-chatlab-skin] .cl-brand-label { display: inline-block; transform: translateY(-.5px); }',
   'html[data-chatlab-skin] .cl-avatar { flex: none; align-self: center; object-fit: cover; background: var(--dsw-alias-bg-layer-3); display: block; }',
+  'html[data-chatlab-skin] .cl-header-avatar { flex: none; align-self: center; margin-left: 8px; order: -1; }',
+  'html[data-chatlab-skin] [class*="projectRow"] [class*="folder"] > svg { display: none; }',
+  'html[data-chatlab-skin] .cl-project-icon { width: 16px; height: 16px; border-radius: 4px; flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; color: #FFFFFF; font-size: 11px; font-weight: 600; line-height: 1; background: hsl(var(--cl-project-hue, 210), 70%, 55%); }',
+  'html[data-chatlab-skin] [class*="sessionRow"] { display: grid; grid-template-columns: var(--cl-session-avatar-col, 32px) minmax(0, 1fr) auto auto; grid-template-rows: var(--cl-session-title-row, 20px) var(--cl-session-preview-row, 16px); column-gap: var(--cl-session-column-gap, 8px); row-gap: var(--cl-session-row-gap, 3px); align-items: center; position: relative; box-sizing: border-box; }',
+  'html[data-chatlab-skin] [class*="sessionRow"] [class*="slot"] { display: none !important; }',
+  'html[data-chatlab-skin] [class*="sessionRow"] .cl-avatar { grid-column: 1; grid-row: 1 / span 2; justify-self: start; align-self: center; }',
+  'html[data-chatlab-skin] [class*="sessionRow"] .cl-preview { grid-column: 2 / span 3; grid-row: 2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+  'html[data-chatlab-skin] [class*="sessionRow"] [class*="title"] { grid-column: 2; grid-row: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
   'html[data-chatlab-skin] .cl-avatar-initial { display: inline-flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 15px; font-weight: 600; }',
   'html[data-chatlab-skin] .cl-unread-dot { flex: none; width: 8px; height: 8px; margin-left: 2px; border-radius: 50%; background: var(--dsw-alias-state-error-primary); box-shadow: 0 0 0 2px var(--dsw-alias-bg-base); }'
 ].join("\n");

@@ -1,0 +1,4 @@
+# ChatLab DingTalk-style skin bundle
+- insert:
+    - id: chatlab-skin-dingtalk
+      name: '@liyuk/dsh-skin-dingtalk'

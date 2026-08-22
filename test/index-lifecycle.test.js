@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-function createStorage() {
-  const values = new Map([["dsh-skin-chatlab.skin", "none"]]);
+function createStorage(initial = "none") {
+  const values = new Map([["dsh-skin-chatlab.skin", initial]]);
   return {
     getItem(key) { return values.get(key) || null; },
     setItem(key, value) { values.set(key, String(value)); }
@@ -88,6 +88,81 @@ describe("core refresh scheduling", () => {
     skinRegistry.registerSkin({ id: "test-registry-rebuild", css: ".test {}" });
     await vi.advanceTimersByTimeAsync(300);
     expect(styleAdds).toBe(2);
+
+    effects.forEach((cleanup) => cleanup());
+  });
+
+  it("switches across all registered skins and removes owned state for none", async () => {
+    let registration;
+    let listSubscriber;
+    let currentStyle = null;
+    const attrs = new Map();
+    const effects = [];
+    const storage = createStorage("feishu");
+    const owned = {
+      parentNode: { removeChild(node) { node.parentNode = null; } }
+    };
+    const root = {
+      setAttribute(name, value) { attrs.set(name, String(value)); },
+      removeAttribute(name) { attrs.delete(name); }
+    };
+    const head = {
+      appendChild(style) { style.parentNode = this; currentStyle = style; },
+      removeChild(style) { style.parentNode = null; if (currentStyle === style) currentStyle = null; }
+    };
+
+    globalThis.window = {
+      __ModuleLoader__: { load(definition) { registration = definition; } }
+    };
+    globalThis.localStorage = storage;
+    globalThis.document = {
+      documentElement: root,
+      head,
+      getElementById() { return currentStyle; },
+      createElement() { return { parentNode: null, id: "", textContent: "" }; },
+      querySelector() { return null; },
+      querySelectorAll(selector) {
+        if (selector.startsWith(".cl-avatar")) return owned.parentNode ? [owned] : [];
+        return [];
+      }
+    };
+
+    await import("../packages/core/src/index.js");
+    const { skinRegistry } = await import("../packages/core/src/registry.js");
+    const ids = ["feishu", "slack", "wecom", "dingtalk", "telegram", "whatsapp"];
+    for (const id of ids) skinRegistry.registerSkin({ id, css: `.skin-${id} {}` });
+
+    const plugin = registration.factory(function () { return {}; });
+    const ctx = {
+      provide() {},
+      slots: { inject() {}, register() {} },
+      effect(factory) {
+        const cleanup = factory();
+        if (typeof cleanup === "function") effects.push(cleanup);
+      },
+      sessions: {
+        list: {
+          getSnapshot() { return { ids: [], byId: {}, current: null }; },
+          subscribe(callback) { listSubscriber = callback; return function () {}; }
+        }
+      }
+    };
+    plugin.apply(ctx);
+
+    for (const id of ids) {
+      storage.setItem("dsh-skin-chatlab.skin", id);
+      listSubscriber();
+      await vi.advanceTimersByTimeAsync(300);
+      expect(attrs.get("data-chatlab-skin")).toBe(id);
+      expect(currentStyle.textContent).toContain(`.skin-${id}`);
+    }
+
+    storage.setItem("dsh-skin-chatlab.skin", "none");
+    listSubscriber();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(attrs.has("data-chatlab-skin")).toBe(false);
+    expect(currentStyle.textContent).not.toContain(".skin-");
+    expect(owned.parentNode).toBeNull();
 
     effects.forEach((cleanup) => cleanup());
   });
